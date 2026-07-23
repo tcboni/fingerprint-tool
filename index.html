@@ -1,0 +1,2816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Fingerprint Tool</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2032%2032'%3E%3Crect%20width%3D'32'%20height%3D'32'%20rx%3D'7'%20fill%3D'%23101012'%2F%3E%3Cg%20fill%3D'none'%20stroke%3D'%23ffb43a'%20stroke-width%3D'1.7'%20stroke-linecap%3D'round'%3E%3Ccircle%20cx%3D'16'%20cy%3D'16'%20r%3D'2.2'%2F%3E%3Cpath%20d%3D'M16%209.5a6.5%206.5%200%200%201%206.5%206.5'%2F%3E%3Cpath%20d%3D'M16%2012.8a3.2%203.2%200%200%201%203.2%203.2'%2F%3E%3Cpath%20d%3D'M9.5%2016a6.5%206.5%200%200%201%206.5-6.5'%2F%3E%3Cpath%20d%3D'M12.8%2016a3.2%203.2%200%200%201%203.2-3.2'%2F%3E%3Cpath%20d%3D'M16%2022.5a6.5%206.5%200%200%201-6.5-6.5'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"
+    />
+    <style>
+      /* ─────────────────────────────────────────────────────────────
+     Fingerprint Tool — a browser-fingerprinting instrument
+     Aesthetic: laboratory bench readout. Near-black plane, hairline
+     panels, amber phosphor for the live reading. Monospace for every
+     measured value; humanist sans for prose. Nothing decorative that
+     isn't doing a job.
+     ───────────────────────────────────────────────────────────── */
+      :root {
+        --plane: #0a0a0b; /* page plane */
+        --surface: #101012; /* panel surface */
+        --surface-2: #16161a; /* raised */
+        --hair: rgba(255, 255, 255, 0.075);
+        --hair-2: rgba(255, 255, 255, 0.14);
+        --ink: #f2f1ec; /* primary text */
+        --ink-2: #a3a29b; /* secondary */
+        --ink-3: #6b6a64; /* muted / axis */
+        --amber: #ffb43a; /* the reading */
+        --amber-dim: #7a5720; /* unfilled meter track (same ramp) */
+        --amber-deep: #241a0c; /* amber wash */
+        --cyan: #4ec9d4; /* secondary signal / "present" */
+        --red: #e5645f; /* high-entropy warning */
+        --mono:
+          ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo,
+          Consolas, monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--plane);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        background-image: radial-gradient(
+          circle at 1px 1px,
+          rgba(255, 255, 255, 0.028) 1px,
+          transparent 0
+        );
+        background-size: 22px 22px;
+      }
+      ::selection {
+        background: rgba(255, 180, 58, 0.28);
+        color: #fff;
+      }
+      a {
+        color: var(--amber);
+      }
+
+      .wrap {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 0 20px 96px;
+      }
+
+      /* ── Masthead ──────────────────────────────────────────── */
+      header.mast {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 26px 0 20px;
+        border-bottom: 1px solid var(--hair);
+        margin-bottom: 30px;
+      }
+      .mark {
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        color: var(--ink);
+        border: 1px solid var(--hair-2);
+        border-radius: 5px;
+        padding: 5px 9px;
+        text-transform: uppercase;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mark .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 8px var(--amber);
+        animation: pulse 2.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .mast h1 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: 0.01em;
+      }
+      .mast .sub {
+        color: var(--ink-2);
+        font-size: 13px;
+        margin-left: auto;
+        font-family: var(--mono);
+      }
+      .mast .gh {
+        display: inline-flex;
+        align-items: center;
+        color: var(--ink-3);
+        transition: color 0.14s;
+      }
+      .mast .gh:hover {
+        color: var(--amber);
+      }
+
+      /* ── Hero readout ──────────────────────────────────────── */
+      .hero {
+        position: relative;
+        border: 1px solid var(--hair);
+        border-radius: 12px;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(255, 180, 58, 0.05),
+            rgba(255, 180, 58, 0) 40%
+          ),
+          var(--surface);
+        padding: 26px 26px 22px;
+        overflow: hidden;
+      }
+      .hero::before {
+        /* corner registration ticks */
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border: 1px solid var(--hair);
+        border-radius: 8px;
+        pointer-events: none;
+        -webkit-mask:
+          linear-gradient(#000 0 0) 0 0/14px 1px no-repeat,
+          linear-gradient(#000 0 0) 0 0/1px 14px no-repeat,
+          linear-gradient(#000 0 0) 100% 0/14px 1px no-repeat,
+          linear-gradient(#000 0 0) 100% 0/1px 14px no-repeat,
+          linear-gradient(#000 0 0) 0 100%/14px 1px no-repeat,
+          linear-gradient(#000 0 0) 0 100%/1px 14px no-repeat,
+          linear-gradient(#000 0 0) 100% 100%/14px 1px no-repeat,
+          linear-gradient(#000 0 0) 100% 100%/1px 14px no-repeat;
+      }
+      .hero .eyebrow {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .fp {
+        font-family: var(--mono);
+        font-weight: 600;
+        color: var(--amber);
+        font-size: clamp(26px, 6vw, 50px);
+        letter-spacing: 0.06em;
+        line-height: 1.1;
+        margin: 14px 0 18px;
+        word-break: break-all;
+        text-shadow: 0 0 26px rgba(255, 180, 58, 0.32);
+        min-height: 1.1em;
+      }
+      .fp.computing {
+        color: var(--ink-3);
+        text-shadow: none;
+        letter-spacing: 0.02em;
+      }
+      .fp .fp-set {
+        color: var(--amber);
+      }
+      .fp .fp-scr {
+        color: #7a5f2e;
+        text-shadow: none;
+      } /* dim amber while unsettled */
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr; /* fixed left column so the scramble never reflows the layout */
+        gap: 28px;
+        align-items: start;
+        padding-top: 18px;
+        border-top: 1px solid var(--hair);
+      }
+      .hero-left,
+      .hero-right {
+        min-width: 0;
+      }
+      @media (max-width: 640px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+      }
+
+      /* left: the headline number */
+      .bits-readout {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .bits-readout .n {
+        font-family: var(--mono);
+        font-size: 52px;
+        font-weight: 600;
+        color: var(--ink);
+        line-height: 0.9;
+        letter-spacing: -0.01em;
+        min-width: 1.3em;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .bits-readout .u {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-3);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        line-height: 1.5;
+      }
+      .odds {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--ink-2);
+        margin-top: 12px;
+        line-height: 1.5;
+      }
+      .odds b {
+        color: var(--amber);
+        font-weight: 600;
+      }
+
+      /* right: verdict + spectrum */
+      .verdict-line {
+        font-size: 13.5px;
+        color: var(--ink-2);
+        line-height: 1.55;
+      }
+      .verdict-line strong {
+        color: var(--ink);
+      }
+      .rarity {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        padding: 5px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--hair-2);
+      }
+      .rarity .swatch {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+      }
+
+      /* entropy spectrum bar (composite of contributions) */
+      .spectrum {
+        margin-top: 16px;
+      }
+      .spectrum-label {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-3);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .spectrum-track {
+        display: flex;
+        height: 16px;
+        border-radius: 4px;
+        overflow: hidden;
+        background: var(--surface-2);
+        border: 1px solid var(--hair);
+      }
+      .spectrum-track .seg {
+        height: 100%;
+        position: relative;
+      }
+      .spectrum-track .seg + .seg {
+        box-shadow: -2px 0 0 var(--surface);
+      } /* 2px surface gap */
+
+      .hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        padding-top: 18px;
+        border-top: 1px solid var(--hair);
+        align-items: center;
+      }
+
+      button.btn {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        background: var(--surface-2);
+        border: 1px solid var(--hair-2);
+        border-radius: 6px;
+        padding: 8px 13px;
+        cursor: pointer;
+        transition: 0.14s;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      button.btn:hover {
+        border-color: var(--amber);
+        color: var(--amber);
+      }
+      button.btn:active {
+        transform: translateY(1px);
+      }
+      button.btn.primary {
+        background: var(--amber-deep);
+        border-color: var(--amber-dim);
+        color: var(--amber);
+      }
+      button.btn.primary:hover {
+        background: rgba(255, 180, 58, 0.14);
+      }
+      button.btn.copied {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
+
+      /* ── Section rhythm ────────────────────────────────────── */
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin: 44px 0 16px;
+      }
+      .section-head .idx {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--amber);
+        border: 1px solid var(--amber-dim);
+        border-radius: 4px;
+        padding: 2px 7px;
+      }
+      .section-head h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: 0.02em;
+      }
+      .section-head .rule {
+        flex: 1;
+        height: 1px;
+        background: var(--hair);
+      }
+
+      /* ── Signal panels ─────────────────────────────────────── */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 720px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .grid.one {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        background: var(--surface);
+        padding: 16px 16px 14px;
+        position: relative;
+        overflow: hidden;
+      }
+      .panel:hover {
+        border-color: var(--hair-2);
+      }
+      .panel .phead {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 12px;
+      }
+      .panel .ptitle {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .panel .spacer {
+        flex: 1;
+      }
+
+      /* info tooltip */
+      .info {
+        position: relative;
+        width: 16px;
+        height: 16px;
+        flex: none;
+        cursor: help;
+        border: 1px solid var(--hair-2);
+        border-radius: 50%;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+        user-select: none;
+      }
+      .info:hover {
+        color: var(--amber);
+        border-color: var(--amber-dim);
+      }
+      .info .pop {
+        position: absolute;
+        z-index: 40;
+        top: 24px;
+        right: -4px;
+        width: 270px;
+        background: var(--surface-2);
+        border: 1px solid var(--hair-2);
+        border-radius: 8px;
+        padding: 11px 12px;
+        font-family: var(--sans);
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--ink-2);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: 0.14s;
+        text-align: left;
+        font-weight: 400;
+        letter-spacing: 0;
+      }
+      .info:hover .pop,
+      .info.open .pop {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+      }
+      .info .pop b {
+        color: var(--ink);
+      }
+      .info .pop .ent {
+        display: block;
+        margin-top: 7px;
+        color: var(--amber);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .kv {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--ink);
+        line-height: 1.7;
+        word-break: break-word;
+      }
+      .kv .k {
+        color: var(--ink-3);
+      }
+      .kv .row {
+        display: flex;
+        gap: 10px;
+      }
+      .kv .row .k {
+        flex: none;
+        min-width: 118px;
+      }
+      .kv .row .v {
+        color: var(--ink);
+      }
+      .kv .v.hl {
+        color: var(--amber);
+      }
+      .kv .v.on {
+        color: var(--cyan);
+      }
+      .kv .v.off {
+        color: var(--ink-3);
+      }
+      .valblock {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-2);
+        background: var(--plane);
+        border: 1px solid var(--hair);
+        border-radius: 6px;
+        padding: 9px 10px;
+        max-height: 150px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* entropy meter (per panel) */
+      .meter {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 13px;
+        padding-top: 11px;
+        border-top: 1px solid var(--hair);
+      }
+      .meter .track {
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--surface-2);
+        border: 1px solid var(--hair);
+        overflow: hidden;
+      }
+      .meter .fill {
+        height: 100%;
+        background: var(--amber);
+        border-radius: 4px 0 0 4px;
+        box-shadow: 0 0 10px rgba(255, 180, 58, 0.4);
+        width: 0;
+        transition: width 0.9s cubic-bezier(0.2, 0.7, 0.3, 1);
+      }
+      .meter .bits {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .meter .bits b {
+        color: var(--amber);
+      }
+
+      .mini-copy {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-3);
+        background: transparent;
+        border: 1px solid var(--hair);
+        border-radius: 5px;
+        padding: 3px 7px;
+        cursor: pointer;
+      }
+      .mini-copy:hover {
+        color: var(--amber);
+        border-color: var(--amber-dim);
+      }
+      .mini-copy.copied {
+        color: var(--cyan);
+        border-color: var(--cyan);
+      }
+
+      canvas.artifact {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--hair);
+        border-radius: 6px;
+        background: #fff;
+        image-rendering: pixelated;
+        display: block;
+      }
+
+      /* capability matrix */
+      .matrix {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 6px;
+      }
+      .cap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 6px 9px;
+        border: 1px solid var(--hair);
+        border-radius: 6px;
+        background: var(--plane);
+      }
+      .cap .led {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .cap.yes .led {
+        background: var(--cyan);
+        box-shadow: 0 0 7px var(--cyan);
+      }
+      .cap.no .led {
+        background: var(--ink-3);
+      }
+      .cap.yes .name {
+        color: var(--ink);
+      }
+      .cap.no .name {
+        color: var(--ink-3);
+      }
+
+      /* font chips */
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 5px;
+        border: 1px solid var(--hair);
+        color: var(--cyan);
+        background: var(--plane);
+      }
+
+      /* live histogram (HTML bars — no SVG scaling distortion) */
+      .histo {
+        margin-top: 6px;
+      }
+      .histo-legend {
+        font-size: 12.5px;
+        color: var(--ink-2);
+        margin-bottom: 12px;
+      }
+      .histo-legend b {
+        color: var(--ink);
+      }
+      .histo-plot {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 132px;
+        border-bottom: 1px solid #2c2c2a;
+        padding-bottom: 0;
+      }
+      .hb {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        height: 100%;
+      }
+      .hb-fill {
+        width: 100%;
+        min-height: 2px;
+        height: 2px;
+        border-radius: 3px 3px 0 0;
+        background: var(--surface-2);
+        transition:
+          height 0.35s cubic-bezier(0.2, 0.7, 0.3, 1),
+          background 0.2s;
+      }
+      .hb-fill.on {
+        background: var(--amber);
+        box-shadow: 0 0 9px rgba(255, 180, 58, 0.35);
+      }
+      .histo-axis {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 7px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        color: var(--ink-3);
+      }
+      .histo-axis .cap {
+        color: var(--ink-3);
+      }
+      .histo-hint {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 12px;
+      }
+
+      .hero-fine {
+        margin-top: 16px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        line-height: 1.5;
+        letter-spacing: 0.02em;
+        color: var(--ink-3);
+        opacity: 0.72;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--surface-2);
+        border: 1px solid var(--cyan);
+        color: var(--cyan);
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 9px 16px;
+        border-radius: 8px;
+        opacity: 0;
+        transition: 0.22s;
+        pointer-events: none;
+        z-index: 100;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .skeleton {
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="mast">
+        <span class="mark"><span class="dot"></span>FINGERPRINT&nbsp;TOOL</span>
+        <span class="sub" id="clock">—</span>
+        <a
+          class="gh"
+          href="https://github.com/tcboni/fingerprint-tool"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View source on GitHub"
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+        </a>
+      </header>
+
+      <!-- ── HERO READOUT ─────────────────────────────────────── -->
+      <section class="hero">
+        <div class="eyebrow"><span>DEVICE&nbsp;SIGNATURE</span></div>
+        <div class="fp" id="fp">
+          <span class="fp-scr">7A3F 91C2 4E08 D5B6 2F1A 8C40</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-left">
+            <div class="bits-readout">
+              <span class="n" id="bits">—</span>
+              <span class="u">bits of<br />identifying entropy</span>
+            </div>
+            <div class="odds" id="odds">
+              roughly <b>1 in —</b> browsers share this profile
+            </div>
+            <div class="rarity" id="rarity" style="display: none">
+              <span class="swatch"></span><span class="rtxt"></span>
+            </div>
+          </div>
+          <div class="hero-right">
+            <div class="verdict-line" id="verdict">
+              Reading your browser's silent tells…
+            </div>
+            <div class="spectrum">
+              <div class="spectrum-label">
+                <span>ENTROPY SPECTRUM</span
+                ><span id="spectrum-total">— bits</span>
+              </div>
+              <div class="spectrum-track" id="spectrum"></div>
+            </div>
+            <div class="hero-fine">
+              Entropy is a heuristic estimate from public research, not a
+              measurement of the global population.
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn" id="copy-fp">⧉ Copy fingerprint</button>
+          <button class="btn primary" id="copy-json">
+            ↧ Copy full report (JSON)
+          </button>
+        </div>
+      </section>
+
+      <!-- Sections are injected here -->
+      <div id="sections"></div>
+    </div>
+
+    <div class="toast" id="toast">copied</div>
+
+    <script>
+      "use strict";
+      /* ══════════════════════════════════════════════════════════════
+   Fingerprint Tool engine
+   1. hashing (no crypto.subtle — must work on file://)
+   2. per-signal collectors  → {rows, raw, bits, extra}
+   3. render panels + meters + hero
+   ══════════════════════════════════════════════════════════════ */
+
+      /* ---- 1. Hashing ------------------------------------------------ */
+      // 53-bit-ish FNV-based hash → hex. Deterministic, sync, no deps.
+      function hash64(str) {
+        let h1 = 0x811c9dc5 >>> 0,
+          h2 = 0xc9dc5118 >>> 0;
+        for (let i = 0; i < str.length; i++) {
+          const c = str.charCodeAt(i);
+          h1 ^= c;
+          h1 = Math.imul(h1, 0x01000193) >>> 0;
+          h2 = (h2 + c) >>> 0;
+          h2 = Math.imul(h2, 0x85ebca77) >>> 0;
+          h2 ^= h2 >>> 13;
+        }
+        h1 ^= h2 >>> 7;
+        h2 ^= h1 << 3;
+        const hex = (n) => (n >>> 0).toString(16).padStart(8, "0");
+        return (
+          hex(h1) + hex(h2 >>> 0) + hex(Math.imul(h1 ^ h2, 0x27d4eb2f) >>> 0)
+        );
+      }
+      function grouped(hex) {
+        return hex
+          .replace(/(.{4})/g, "$1 ")
+          .trim()
+          .toUpperCase();
+      }
+
+      /* ---- helpers -------------------------------------------------- */
+      const el = (t, c, txt) => {
+        const e = document.createElement(t);
+        if (c) e.className = c;
+        if (txt != null) e.textContent = txt;
+        return e;
+      };
+      const esc = (s) =>
+        String(s).replace(
+          /[<>&]/g,
+          (m) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[m],
+        );
+      function toast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg || "copied";
+        t.classList.add("show");
+        clearTimeout(t._h);
+        t._h = setTimeout(() => t.classList.remove("show"), 1400);
+      }
+      function copyText(text, onOk) {
+        const done = () => {
+          toast("copied to clipboard");
+          onOk && onOk();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, () => fallback());
+        } else fallback();
+        function fallback() {
+          try {
+            const ta = el("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+            done();
+          } catch (e) {
+            toast("copy blocked by browser");
+          }
+        }
+      }
+
+      /* ---- 2. Collectors -------------------------------------------
+   Each returns { rows:[[k,v,cls?]], raw:string, bits:number,
+   render?:fn(bodyEl), fonts?:[], full?:obj }
+   `bits` = heuristic *maximum* entropy this signal tends to carry.
+   ---------------------------------------------------------------*/
+      const REPORT = {
+        meta: {
+          tool: "Fingerprint Tool",
+          note: "computed locally, nothing transmitted",
+        },
+        signals: {},
+      };
+
+      async function collectNavigator() {
+        const n = navigator,
+          rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, v == null ? "—" : String(v), cls]);
+          if (v != null) parts.push(k + "=" + v);
+        };
+        add("User-Agent", n.userAgent);
+        add("Platform", n.platform);
+        add("Vendor", n.vendor || "(none)");
+        add("Languages", (n.languages || [n.language]).join(", "));
+        add("CPU threads", n.hardwareConcurrency);
+        add(
+          "Device memory",
+          n.deviceMemory ? n.deviceMemory + " GB" : "not exposed",
+        );
+        add("Max touch pts", n.maxTouchPoints);
+        add("Do Not Track", n.doNotTrack == null ? "unset" : n.doNotTrack);
+        const plugins = Array.from(n.plugins || []).map((p) => p.name);
+        const mimes = Array.from(n.mimeTypes || []).map((m) => m.type);
+        add(
+          "Plugins",
+          plugins.length
+            ? plugins.length +
+                " (" +
+                plugins.slice(0, 3).join(", ") +
+                (plugins.length > 3 ? "…" : "") +
+                ")"
+            : "none",
+        );
+        add("MIME types", mimes.length);
+        const full = {
+          userAgent: n.userAgent,
+          platform: n.platform,
+          vendor: n.vendor,
+          languages: n.languages,
+          hardwareConcurrency: n.hardwareConcurrency,
+          deviceMemory: n.deviceMemory || null,
+          maxTouchPoints: n.maxTouchPoints,
+          doNotTrack: n.doNotTrack,
+          plugins: plugins,
+          mimeTypes: mimes,
+        };
+        if (n.userAgentData) {
+          const d = n.userAgentData;
+          const uad =
+            (d.platform || "?") + (d.mobile ? " · mobile" : " · desktop");
+          add("UA-CH platform", uad, "hl");
+          if (d.brands)
+            add(
+              "UA-CH brands",
+              d.brands.map((b) => b.brand + " " + b.version).join(", "),
+            );
+          full.userAgentData = uad;
+          // High-entropy Client Hints — the genuinely identifying ones
+          if (d.getHighEntropyValues) {
+            try {
+              const he = await d.getHighEntropyValues([
+                "architecture",
+                "bitness",
+                "model",
+                "platformVersion",
+                "fullVersionList",
+              ]);
+              if (he.architecture)
+                add(
+                  "CH architecture",
+                  he.architecture +
+                    (he.bitness ? " · " + he.bitness + "-bit" : ""),
+                  "hl",
+                );
+              if (he.model) add("CH device model", he.model);
+              if (he.platformVersion) add("CH OS version", he.platformVersion);
+              if (he.fullVersionList)
+                add(
+                  "CH full versions",
+                  he.fullVersionList
+                    .map((b) => b.brand + " " + b.version)
+                    .join(", "),
+                );
+              full.highEntropy = he;
+            } catch (e) {}
+          }
+        }
+        return { rows, raw: parts.join("|"), bits: 12, full };
+      }
+
+      function collectScreen() {
+        const s = screen,
+          rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, String(v), cls]);
+          parts.push(k + "=" + v);
+        };
+        add("Resolution", s.width + " × " + s.height, "hl");
+        add("Available", s.availWidth + " × " + s.availHeight);
+        add("Color depth", s.colorDepth + "-bit");
+        add("Pixel ratio", window.devicePixelRatio);
+        add("Inner window", window.innerWidth + " × " + window.innerHeight);
+        add(
+          "Orientation",
+          (screen.orientation && screen.orientation.type) || "unknown",
+        );
+        let mon = "single / not exposed";
+        if (window.screen && "isExtended" in window.screen)
+          mon = window.screen.isExtended
+            ? "extended (multi-monitor)"
+            : "single display";
+        add("Multi-monitor", mon);
+        return {
+          rows,
+          raw: parts.join("|"),
+          bits: 5,
+          full: {
+            width: s.width,
+            height: s.height,
+            availWidth: s.availWidth,
+            availHeight: s.availHeight,
+            colorDepth: s.colorDepth,
+            devicePixelRatio: window.devicePixelRatio,
+            orientation:
+              (screen.orientation && screen.orientation.type) || null,
+            isExtended: mon,
+          },
+        };
+      }
+
+      function collectLocale() {
+        const rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, String(v), cls]);
+          parts.push(k + "=" + v);
+        };
+        const dtf = Intl.DateTimeFormat().resolvedOptions();
+        add("Time zone", dtf.timeZone, "hl");
+        add(
+          "UTC offset",
+          "UTC" +
+            (-new Date().getTimezoneOffset() >= 0 ? "+" : "") +
+            -new Date().getTimezoneOffset() / 60,
+        );
+        add("Locale", dtf.locale);
+        add("Calendar", dtf.calendar);
+        add("Numbering", dtf.numberingSystem);
+        const n = (1234567.89).toLocaleString();
+        add("Number format", n);
+        const d = new Date(2026, 0, 15).toLocaleDateString();
+        add("Date format", d);
+        // first day of week (heuristic via Intl if available)
+        let fdow = "—";
+        try {
+          const loc = new Intl.Locale(dtf.locale);
+          fdow =
+            (loc.weekInfo && loc.weekInfo.firstDay) ||
+            (loc.getWeekInfo && loc.getWeekInfo().firstDay) ||
+            "—";
+        } catch (e) {}
+        add(
+          "First day of week",
+          fdow === 7 ? "Sunday" : fdow === 1 ? "Monday" : fdow,
+        );
+        return {
+          rows,
+          raw: parts.join("|"),
+          bits: 4,
+          full: {
+            timeZone: dtf.timeZone,
+            locale: dtf.locale,
+            calendar: dtf.calendar,
+            numberingSystem: dtf.numberingSystem,
+            numberFormat: n,
+            dateFormat: d,
+            firstDayOfWeek: fdow,
+          },
+        };
+      }
+
+      function collectCanvas() {
+        const cv = el("canvas");
+        cv.width = 440;
+        cv.height = 130;
+        const ctx = cv.getContext("2d");
+        let raw = "canvas-unavailable";
+        if (ctx) {
+          ctx.fillStyle = "#f6f5f0";
+          ctx.fillRect(0, 0, 440, 130);
+          // gradient + shapes
+          const g = ctx.createLinearGradient(0, 0, 440, 0);
+          g.addColorStop(0, "#ff8a00");
+          g.addColorStop(0.5, "#e52e71");
+          g.addColorStop(1, "#3a86ff");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(360, 70, 42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalCompositeOperation = "multiply";
+          ctx.fillStyle = "#26c6da";
+          ctx.beginPath();
+          ctx.arc(320, 70, 42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalCompositeOperation = "source-over";
+          ctx.textBaseline = "alphabetic";
+          ctx.fillStyle = "#1a1a1a";
+          ctx.font = '700 26px "Arial"';
+          ctx.fillText("Fingerprint ⚡ 42", 12, 42);
+          ctx.fillStyle = "rgba(20,120,60,0.85)";
+          ctx.font = '16px "Times New Roman"';
+          ctx.fillText("The quick brown fox 0123", 12, 74);
+          ctx.strokeStyle = "rgba(180,40,120,0.7)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(12, 96);
+          ctx.bezierCurveTo(120, 60, 220, 130, 300, 100);
+          ctx.stroke();
+          // emoji — huge cross-platform variance
+          ctx.font = "24px sans-serif";
+          ctx.fillText("🔥🧬🌐", 12, 122);
+          try {
+            raw = cv.toDataURL();
+          } catch (e) {
+            raw = "canvas-blocked";
+          }
+        }
+        const h = hash64(raw);
+        return {
+          rows: [["Pixel hash", grouped(h).slice(0, 29) + "…", "hl"]],
+          raw,
+          bits: 8,
+          hash: h,
+          render: (body) => {
+            const c = cv;
+            c.className = "artifact";
+            c.style.marginTop = "4px";
+            body.appendChild(c);
+            const cap = el(
+              "div",
+              "histo-hint",
+              "↑ the actual rendered artifact — its exact pixels vary by GPU, driver, OS font renderer & anti-aliasing",
+            );
+            body.appendChild(cap);
+          },
+          full: { hash: h, dataURLLength: raw.length },
+        };
+      }
+
+      function collectWebGL() {
+        const cv = el("canvas");
+        let gl;
+        try {
+          gl = cv.getContext("webgl") || cv.getContext("experimental-webgl");
+        } catch (e) {}
+        if (!gl)
+          return {
+            rows: [["Status", "WebGL unavailable / blocked", "off"]],
+            raw: "no-webgl",
+            bits: 0,
+            full: { available: false },
+          };
+        const rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, String(v), cls]);
+          parts.push(k + "=" + v);
+        };
+        let vendor = "(masked)",
+          renderer = "(masked)";
+        const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        if (dbg) {
+          vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+          renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+        }
+        add("GPU vendor", vendor, "hl");
+        add("GPU renderer", renderer, "hl");
+        add("GL version", gl.getParameter(gl.VERSION));
+        add("Shading lang", gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+        add("Max texture", gl.getParameter(gl.MAX_TEXTURE_SIZE) + "px");
+        add(
+          "Max viewport",
+          (gl.getParameter(gl.MAX_VIEWPORT_DIMS) || []).join("×"),
+        );
+        const exts = gl.getSupportedExtensions() || [];
+        add("Extensions", exts.length + " supported");
+        // precision
+        let prec = "—";
+        try {
+          const p = gl.getShaderPrecisionFormat(
+            gl.FRAGMENT_SHADER,
+            gl.HIGH_FLOAT,
+          );
+          prec = p ? "±" + p.rangeMax + " / " + p.precision + "-bit" : "—";
+        } catch (e) {}
+        add("Frag precision", prec);
+        // tiny render → hash the pixels
+        let renderHash = "—";
+        try {
+          const vs = gl.createShader(gl.VERTEX_SHADER);
+          gl.shaderSource(
+            vs,
+            "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}",
+          );
+          gl.compileShader(vs);
+          const fs = gl.createShader(gl.FRAGMENT_SHADER);
+          gl.shaderSource(
+            fs,
+            "precision mediump float;void main(){gl_FragColor=vec4(gl_FragCoord.x/64.,gl_FragCoord.y/32.,.5,1.);}",
+          );
+          gl.compileShader(fs);
+          const pr = gl.createProgram();
+          gl.attachShader(pr, vs);
+          gl.attachShader(pr, fs);
+          gl.linkProgram(pr);
+          gl.useProgram(pr);
+          const buf = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([-1, -1, 3, -1, -1, 3]),
+            gl.STATIC_DRAW,
+          );
+          const loc = gl.getAttribLocation(pr, "p");
+          gl.enableVertexAttribArray(loc);
+          gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+          const px = new Uint8Array(64 * 32 * 4);
+          gl.readPixels(0, 0, 64, 32, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          renderHash = hash64(px.join(",") + "|" + exts.join(","));
+        } catch (e) {}
+        const raw = parts.join("|") + "|" + renderHash;
+        return {
+          rows,
+          raw,
+          bits: 10,
+          hash: renderHash,
+          exts,
+          render: (body) => {
+            const d = el("details");
+            d.style.marginTop = "10px";
+            const sm = el("summary");
+            sm.style.cssText =
+              "font-family:var(--mono);font-size:11px;color:var(--ink-3);cursor:pointer";
+            sm.textContent =
+              "▸ " +
+              exts.length +
+              " WebGL extensions + render hash " +
+              grouped(renderHash).slice(0, 14) +
+              "…";
+            d.appendChild(sm);
+            const box = el("div", "valblock");
+            box.style.marginTop = "8px";
+            box.textContent = exts.join("\n");
+            d.appendChild(box);
+            body.appendChild(d);
+          },
+          full: {
+            vendor,
+            renderer,
+            version: gl.getParameter(gl.VERSION),
+            extensions: exts,
+            renderHash,
+          },
+        };
+      }
+
+      async function collectAudio() {
+        const rows = [],
+          parts = [];
+        try {
+          const AC =
+            window.OfflineAudioContext || window.webkitOfflineAudioContext;
+          if (!AC) throw 0;
+          const ctx = new AC(1, 44100, 44100);
+          const osc = ctx.createOscillator();
+          osc.type = "triangle";
+          osc.frequency.value = 10000;
+          const comp = ctx.createDynamicsCompressor();
+          comp.threshold.value = -50;
+          comp.knee.value = 40;
+          comp.ratio.value = 12;
+          comp.attack.value = 0;
+          comp.release.value = 0.25;
+          osc.connect(comp);
+          comp.connect(ctx.destination);
+          osc.start(0);
+          const buf = await ctx.startRendering();
+          const data = buf.getChannelData(0);
+          let sum = 0;
+          for (let i = 4500; i < 5500; i++) sum += Math.abs(data[i]);
+          const slice = Array.from(data.slice(4500, 4550))
+            .map((x) => x.toFixed(6))
+            .join(",");
+          const h = hash64(slice);
+          rows.push(["DSP fingerprint", grouped(h).slice(0, 24) + "…", "hl"]);
+          rows.push(["Sample metric", sum.toFixed(8)]);
+          rows.push(["Context", "44.1 kHz offline · compressor graph"]);
+          return {
+            rows,
+            raw: slice,
+            bits: 5,
+            hash: h,
+            full: { hash: h, metric: sum },
+          };
+        } catch (e) {
+          return {
+            rows: [["Status", "AudioContext unavailable / blocked", "off"]],
+            raw: "no-audio",
+            bits: 0,
+            full: { available: false },
+          };
+        }
+      }
+
+      function collectFonts() {
+        const base = ["monospace", "sans-serif", "serif"];
+        const test = [
+          "Arial",
+          "Arial Black",
+          "Arial Narrow",
+          "Bahnschrift",
+          "Calibri",
+          "Cambria",
+          "Candara",
+          "Comic Sans MS",
+          "Consolas",
+          "Constantia",
+          "Corbel",
+          "Courier New",
+          "Franklin Gothic Medium",
+          "Gabriola",
+          "Georgia",
+          "Impact",
+          "Ink Free",
+          "Lucida Console",
+          "Lucida Sans Unicode",
+          "Malgun Gothic",
+          "Marlett",
+          "Microsoft Sans Serif",
+          "MingLiU",
+          "MS Gothic",
+          "MS PGothic",
+          "MV Boli",
+          "Palatino Linotype",
+          "Segoe Print",
+          "Segoe Script",
+          "Segoe UI",
+          "SimSun",
+          "Sylfaen",
+          "Symbol",
+          "Tahoma",
+          "Times New Roman",
+          "Trebuchet MS",
+          "Verdana",
+          "Webdings",
+          "Wingdings",
+          "Helvetica",
+          "Helvetica Neue",
+          "Menlo",
+          "Monaco",
+          "Geneva",
+          "Optima",
+          "Gill Sans",
+          "Baskerville",
+          "Andale Mono",
+          "Courier",
+          "American Typewriter",
+          "Futura",
+          "Hoefler Text",
+          "Noto Sans",
+          "Roboto",
+          "Ubuntu",
+          "Cantarell",
+          "DejaVu Sans",
+          "Liberation Sans",
+          "Droid Sans",
+        ];
+        const S = "mmmmmmmmmmlli WWWWW gqpy 0123456789",
+          px = 72;
+        const span = el("span");
+        span.style.cssText =
+          "position:absolute;left:-9999px;top:-9999px;font-size:" + px + "px;";
+        span.textContent = S;
+        document.body.appendChild(span);
+        const baseW = {};
+        base.forEach((b) => {
+          span.style.fontFamily = b;
+          baseW[b] = { w: span.offsetWidth, h: span.offsetHeight };
+        });
+        const present = [];
+        test.forEach((f) => {
+          for (const b of base) {
+            span.style.fontFamily = "'" + f + "'," + b;
+            if (
+              span.offsetWidth !== baseW[b].w ||
+              span.offsetHeight !== baseW[b].h
+            ) {
+              present.push(f);
+              break;
+            }
+          }
+        });
+        span.remove();
+        const raw = present.join(",");
+        return {
+          rows: [
+            [
+              "Detected",
+              present.length + " of " + test.length + " probed",
+              "hl",
+            ],
+          ],
+          raw,
+          bits: 8,
+          fonts: present,
+          render: (body) => {
+            const c = el("div", "chips");
+            c.style.marginTop = "10px";
+            present.forEach((f) => {
+              const chip = el("span", "chip", f);
+              chip.style.fontFamily = "'" + f + "',monospace";
+              c.appendChild(chip);
+            });
+            if (!present.length)
+              c.appendChild(
+                el("span", "skeleton", "no distinguishable fonts detected"),
+              );
+            body.appendChild(c);
+          },
+          full: { present, probed: test.length },
+        };
+      }
+
+      async function collectMedia() {
+        const rows = [];
+        try {
+          if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.enumerateDevices
+          )
+            throw 0;
+          const list = await navigator.mediaDevices.enumerateDevices();
+          const count = (t) => list.filter((d) => d.kind === t).length;
+          const labeled = list.some((d) => d.label);
+          rows.push(["Audio input", count("audioinput")]);
+          rows.push(["Audio output", count("audiooutput")]);
+          rows.push(["Video input", count("videoinput")]);
+          rows.push([
+            "Labels",
+            labeled
+              ? "exposed (permission granted)"
+              : "hidden until permission",
+            labeled ? "on" : "off",
+          ]);
+          return {
+            rows,
+            raw:
+              "ai" +
+              count("audioinput") +
+              "ao" +
+              count("audiooutput") +
+              "vi" +
+              count("videoinput"),
+            bits: 2,
+            full: {
+              audioinput: count("audioinput"),
+              audiooutput: count("audiooutput"),
+              videoinput: count("videoinput"),
+              labelsExposed: labeled,
+            },
+          };
+        } catch (e) {
+          return {
+            rows: [["Status", "Media devices unavailable", "off"]],
+            raw: "no-media",
+            bits: 0,
+            full: { available: false },
+          };
+        }
+      }
+
+      function collectCapabilities() {
+        const checks = {
+          WebGPU: "gpu" in navigator,
+          "Web Bluetooth": "bluetooth" in navigator,
+          WebUSB: "usb" in navigator,
+          "Web Serial": "serial" in navigator,
+          WebHID: "hid" in navigator,
+          WebXR: "xr" in navigator,
+          WebNFC: "NDEFReader" in window,
+          WebMIDI: "requestMIDIAccess" in navigator,
+          WebTransport: "WebTransport" in window,
+          WebCodecs: "VideoEncoder" in window,
+          BarcodeDetector: "BarcodeDetector" in window,
+          EyeDropper: "EyeDropper" in window,
+          IdleDetector: "IdleDetector" in window,
+          "Contact Picker":
+            "contacts" in navigator && "ContactsManager" in window,
+          "File System": "showOpenFilePicker" in window,
+          "Payment Request": "PaymentRequest" in window,
+          "Web Locks": "locks" in navigator,
+          Geolocation: "geolocation" in navigator,
+          "Ambient Light": "AmbientLightSensor" in window,
+          Accelerometer: "Accelerometer" in window,
+          Compression: "CompressionStream" in window,
+          Credentials: "credentials" in navigator,
+          "Share API": "share" in navigator,
+          Clipboard: !!(navigator.clipboard && navigator.clipboard.read),
+          "Wake Lock": "wakeLock" in navigator,
+          "Storage Estimate": !!(
+            navigator.storage && navigator.storage.estimate
+          ),
+          localStorage: (() => {
+            try {
+              return !!window.localStorage;
+            } catch (e) {
+              return false;
+            }
+          })(),
+          sessionStorage: (() => {
+            try {
+              return !!window.sessionStorage;
+            } catch (e) {
+              return false;
+            }
+          })(),
+          IndexedDB: "indexedDB" in window,
+          "Cache Storage": "caches" in window,
+          "Service Worker": "serviceWorker" in navigator,
+          WebAssembly: typeof WebAssembly === "object",
+          SharedArrayBuffer: typeof SharedArrayBuffer !== "undefined",
+          "Battery API": "getBattery" in navigator,
+          Gamepad: "getGamepads" in navigator,
+          "Speech Synthesis": "speechSynthesis" in window,
+          Vibration: "vibrate" in navigator,
+          Notifications: "Notification" in window,
+        };
+        // codecs
+        const v = el("video"),
+          a = el("audio");
+        const cp = (elm, t) => {
+          try {
+            return elm.canPlayType(t) ? true : false;
+          } catch (e) {
+            return false;
+          }
+        };
+        Object.assign(checks, {
+          "H.264 video": cp(v, 'video/mp4; codecs="avc1.42E01E"'),
+          "HEVC/H.265": cp(v, 'video/mp4; codecs="hvc1"'),
+          VP9: cp(v, 'video/webm; codecs="vp9"'),
+          AV1: cp(v, 'video/mp4; codecs="av01.0.05M.08"'),
+          "AAC audio": cp(a, 'audio/mp4; codecs="mp4a.40.2"'),
+          "Ogg Opus": cp(a, 'audio/ogg; codecs="opus"'),
+          FLAC: cp(a, "audio/flac"),
+        });
+        const raw = Object.entries(checks)
+          .map(([k, v]) => k + ":" + (v ? 1 : 0))
+          .join("|");
+        return {
+          rows: [],
+          raw,
+          bits: 5,
+          checks,
+          render: (body) => {
+            const m = el("div", "matrix");
+            Object.entries(checks).forEach(([k, v]) => {
+              const c = el("div", "cap " + (v ? "yes" : "no"));
+              c.appendChild(el("span", "led"));
+              c.appendChild(el("span", "name", k));
+              m.appendChild(c);
+            });
+            body.appendChild(m);
+          },
+          full: checks,
+        };
+      }
+
+      async function collectMisc() {
+        const rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, String(v), cls]);
+          parts.push(k + "=" + v);
+        };
+        const mq = (q) => window.matchMedia && window.matchMedia(q).matches;
+        add(
+          "Color scheme",
+          mq("(prefers-color-scheme: dark)") ? "dark" : "light",
+          "hl",
+        );
+        add(
+          "Reduced motion",
+          mq("(prefers-reduced-motion: reduce)") ? "reduce" : "no-preference",
+        );
+        add(
+          "Contrast",
+          mq("(prefers-contrast: more)")
+            ? "more"
+            : mq("(prefers-contrast: less)")
+              ? "less"
+              : "no-preference",
+        );
+        add(
+          "Reduced transparency",
+          mq("(prefers-reduced-transparency: reduce)")
+            ? "reduce"
+            : "no-preference",
+        );
+        add(
+          "Inverted colors",
+          mq("(inverted-colors: inverted)") ? "inverted" : "none",
+        );
+        add(
+          "Update rate",
+          mq("(update: fast)")
+            ? "fast"
+            : mq("(update: slow)")
+              ? "slow"
+              : "none",
+        );
+        add(
+          "Display mode",
+          mq("(display-mode: standalone)")
+            ? "standalone"
+            : mq("(display-mode: fullscreen)")
+              ? "fullscreen"
+              : "browser",
+        );
+        add(
+          "Color gamut",
+          mq("(color-gamut: p3)")
+            ? "p3"
+            : mq("(color-gamut: rec2020)")
+              ? "rec2020"
+              : "srgb",
+        );
+        add("Forced colors", mq("(forced-colors: active)") ? "active" : "none");
+        add(
+          "Pointer",
+          mq("(pointer: fine)")
+            ? "fine"
+            : mq("(pointer: coarse)")
+              ? "coarse"
+              : "none",
+        );
+        add("Hover", mq("(hover: hover)") ? "hover-capable" : "no-hover");
+        add("HDR", mq("(dynamic-range: high)") ? "high" : "standard");
+        const conn = navigator.connection || navigator.mozConnection;
+        if (conn) {
+          add(
+            "Connection",
+            (conn.effectiveType || "?") +
+              (conn.downlink ? " · ~" + conn.downlink + " Mbps" : ""),
+          );
+          if (conn.rtt != null) add("Est. RTT", conn.rtt + " ms");
+        } else add("Connection", "not exposed", "off");
+        // storage quota → rough disk size
+        try {
+          if (navigator.storage && navigator.storage.estimate) {
+            const est = await navigator.storage.estimate();
+            if (est.quota)
+              add(
+                "Storage quota",
+                "~" + (est.quota / 1073741824).toFixed(1) + " GB available",
+              );
+          }
+        } catch (e) {}
+        add("Cookies enabled", navigator.cookieEnabled);
+        add(
+          "PDF viewer",
+          navigator.pdfViewerEnabled == null
+            ? "unknown"
+            : navigator.pdfViewerEnabled,
+        );
+        return {
+          rows,
+          raw: parts.join("|"),
+          bits: 3,
+          full: Object.fromEntries(rows.map((r) => [r[0], r[1]])),
+        };
+      }
+
+      function collectMath() {
+        const ops = {
+          "acos(0.123)": Math.acos(0.123),
+          "acosh(1e308)": Math.acosh(1e308),
+          "asinh(1e150)": Math.asinh(1e150),
+          "atanh(0.5)": Math.atanh(0.5),
+          "cosh(10)": Math.cosh(10),
+          "sinh(2)": Math.sinh(2),
+          "tanh(0.12)": Math.tanh(0.12),
+          "expm1(1)": Math.expm1(1),
+          "exp(21)": Math.exp(21),
+          "log1p(0.5)": Math.log1p(0.5),
+          "pow(π,-100)": Math.pow(Math.PI, -100),
+        };
+        const parts = Object.entries(ops).map(([k, v]) => k + "=" + v);
+        const h = hash64(parts.join("|"));
+        const rows = [
+          ["FP hash", grouped(h).slice(0, 24) + "…", "hl"],
+          ["sinh(2)", ops["sinh(2)"].toString().slice(0, 18)],
+          ["acosh(1e308)", ops["acosh(1e308)"].toString().slice(0, 18)],
+        ];
+        return {
+          rows,
+          raw: parts.join("|"),
+          bits: 2,
+          hash: h,
+          render: (body) => {
+            body.appendChild(
+              el(
+                "div",
+                "histo-hint",
+                "Transcendental functions are computed by the platform math library — results diverge in the last bits across CPUs, OSes and browser builds.",
+              ),
+            );
+          },
+          full: { hash: h, sample: ops },
+        };
+      }
+
+      function collectJSEngine() {
+        const rows = [],
+          parts = [];
+        const add = (k, v, cls) => {
+          rows.push([k, String(v), cls]);
+          parts.push(k + "=" + v);
+        };
+        // timer resolution — coarsened by resistFingerprinting / lack of cross-origin isolation
+        let res = 0;
+        try {
+          let min = Infinity,
+            prev = performance.now();
+          for (let i = 0; i < 30000; i++) {
+            const t = performance.now();
+            const d = t - prev;
+            if (d > 0 && d < min) min = d;
+            prev = t;
+          }
+          res = min === Infinity ? 0 : min;
+          add(
+            "Timer resolution",
+            (res < 0.001 ? "<0.001" : res.toFixed(4)) + " ms",
+            "hl",
+          );
+        } catch (e) {
+          add("Timer resolution", "n/a");
+        }
+        // engine-specific error wording (Chrome/Firefox/Safari all differ)
+        let errMsg = "";
+        try {
+          null.x;
+        } catch (e) {
+          errMsg = e.message;
+        }
+        add("TypeError text", errMsg);
+        // native-function source formatting varies by engine
+        let nativeStr = "";
+        try {
+          nativeStr = Function.prototype.toString.call(Array.prototype.push);
+        } catch (e) {}
+        add(
+          "Native fn source",
+          nativeStr.replace(/\s+/g, " ").slice(0, 34) +
+            (nativeStr.length > 34 ? "…" : ""),
+        );
+        // stack-trace first-line shape
+        let stackHead = "";
+        try {
+          throw new Error("probe");
+        } catch (e) {
+          stackHead = ((e.stack || "").split("\n")[0] || "").slice(0, 40);
+        }
+        const h = hash64(parts.join("|") + "|" + stackHead);
+        rows.unshift(["Engine hash", grouped(h).slice(0, 24) + "…", "hl"]);
+        return {
+          rows,
+          raw: parts.join("|") + "|" + stackHead,
+          bits: 3,
+          hash: h,
+          full: {
+            hash: h,
+            timerResolutionMs: res,
+            typeError: errMsg,
+            nativeFnSample: nativeStr.slice(0, 50),
+          },
+        };
+      }
+
+      function collectCSS() {
+        const can = window.CSS && CSS.supports;
+        const P = (p, v) => {
+          try {
+            return can && CSS.supports(p, v) ? 1 : 0;
+          } catch (e) {
+            return 0;
+          }
+        };
+        const SEL = (s) => {
+          try {
+            return can && CSS.supports("selector(" + s + ")") ? 1 : 0;
+          } catch (e) {
+            return 0;
+          }
+        };
+        const MQ = (f, v) => {
+          try {
+            return window.matchMedia("(" + f + ":" + v + ")").media !==
+              "not all"
+              ? 1
+              : 0;
+          } catch (e) {
+            return 0;
+          }
+        };
+        // [label, property, value] — layout, graphics, typography, motion, bleeding-edge
+        const props = [
+          ["grid", "display", "grid"],
+          ["subgrid", "grid-template-columns", "subgrid"],
+          ["flexbox", "display", "flex"],
+          ["display:contents", "display", "contents"],
+          ["container-type", "container-type", "inline-size"],
+          ["content-visibility", "content-visibility", "auto"],
+          ["contain", "contain", "paint"],
+          ["aspect-ratio", "aspect-ratio", "1 / 1"],
+          ["object-fit", "object-fit", "cover"],
+          ["object-position", "object-position", "0 0"],
+          ["clip-path", "clip-path", "circle(1px)"],
+          ["shape-outside", "shape-outside", "circle()"],
+          ["mask-image", "mask-image", "none"],
+          ["-webkit-mask", "-webkit-mask", "none"],
+          ["filter", "filter", "blur(1px)"],
+          ["backdrop-filter", "backdrop-filter", "blur(1px)"],
+          ["mix-blend-mode", "mix-blend-mode", "multiply"],
+          ["isolation", "isolation", "isolate"],
+          ["translate", "translate", "0"],
+          ["rotate", "rotate", "0deg"],
+          ["scale", "scale", "1"],
+          ["transform-3d", "transform-style", "preserve-3d"],
+          ["perspective", "perspective", "1px"],
+          ["offset-path", "offset-path", "none"],
+          ["scroll-snap", "scroll-snap-type", "x mandatory"],
+          ["scroll-behavior", "scroll-behavior", "smooth"],
+          ["scrollbar-gutter", "scrollbar-gutter", "stable"],
+          ["scrollbar-width", "scrollbar-width", "thin"],
+          ["overscroll-behavior", "overscroll-behavior", "contain"],
+          ["overflow:clip", "overflow", "clip"],
+          ["accent-color", "accent-color", "red"],
+          ["appearance", "appearance", "none"],
+          ["caret-color", "caret-color", "red"],
+          ["resize", "resize", "both"],
+          ["user-select", "user-select", "none"],
+          ["touch-action", "touch-action", "pan-x"],
+          ["pointer-events", "pointer-events", "none"],
+          ["text-wrap:balance", "text-wrap", "balance"],
+          ["text-wrap:pretty", "text-wrap", "pretty"],
+          ["hyphens", "hyphens", "auto"],
+          ["text-decoration-thickness", "text-decoration-thickness", "1px"],
+          ["text-decoration-skip-ink", "text-decoration-skip-ink", "auto"],
+          ["font-variation-settings", "font-variation-settings", "'wght' 400"],
+          ["font-optical-sizing", "font-optical-sizing", "auto"],
+          ["font-palette", "font-palette", "normal"],
+          ["font-size-adjust", "font-size-adjust", "0.5"],
+          ["font-synthesis", "font-synthesis", "none"],
+          ["field-sizing", "field-sizing", "content"],
+          ["interpolate-size", "interpolate-size", "allow-keywords"],
+          ["text-box-trim", "text-box-trim", "trim-both"],
+          ["text-box-edge", "text-box-edge", "cap alphabetic"],
+          ["anchor-name", "anchor-name", "--a"],
+          ["position-anchor", "position-anchor", "--a"],
+          ["view-transition-name", "view-transition-name", "a"],
+          ["animation-timeline", "animation-timeline", "auto"],
+          ["scroll-timeline", "scroll-timeline-name", "none"],
+          ["view-timeline", "view-timeline-name", "none"],
+          ["custom-prop", "--x", "0"],
+          ["-webkit-line-clamp", "-webkit-line-clamp", "2"],
+          ["-webkit-text-security", "-webkit-text-security", "disc"],
+          ["-moz-osx-font-smoothing", "-moz-osx-font-smoothing", "grayscale"],
+          ["zoom", "zoom", "1"],
+          ["math-depth", "math-depth", "1"],
+          ["100dvh", "height", "100dvh"],
+        ];
+        // math & color function value syntaxes
+        const funcs = [
+          ["calc()", "width", "calc(1px + 1px)"],
+          ["min()", "width", "min(1px, 2px)"],
+          ["max()", "width", "max(1px, 2px)"],
+          ["clamp()", "width", "clamp(1px, 2px, 3px)"],
+          ["round()", "width", "round(1px, 1px)"],
+          ["mod()", "width", "calc(mod(4px, 3px))"],
+          ["rem()", "width", "calc(rem(4px, 3px))"],
+          ["sin()", "width", "calc(sin(1) * 1px)"],
+          ["cos()", "width", "calc(cos(1) * 1px)"],
+          ["tan()", "width", "calc(tan(1) * 1px)"],
+          ["pow()", "width", "calc(pow(2, 2) * 1px)"],
+          ["sqrt()", "width", "calc(sqrt(4) * 1px)"],
+          ["hypot()", "width", "calc(hypot(3, 4) * 1px)"],
+          ["sign()", "width", "calc(sign(-1) * 1px)"],
+          ["abs()", "width", "calc(abs(-1px))"],
+          ["lab()", "color", "lab(50% 40 60)"],
+          ["lch()", "color", "lch(50% 40 60)"],
+          ["oklab()", "color", "oklab(0.5 0 0)"],
+          ["oklch()", "color", "oklch(0.5 0.1 200)"],
+          ["color()", "color", "color(display-p3 1 0 0)"],
+          ["color-mix()", "color", "color-mix(in srgb, red, blue)"],
+          ["relative-color", "color", "rgb(from red r g b)"],
+          ["light-dark()", "color", "light-dark(#000, #fff)"],
+          ["env()", "top", "env(safe-area-inset-top)"],
+          ["attr()-typed", "width", "attr(data-x type(<length>), 0px)"],
+          ["if()", "color", "if(style(--x: 1): red; else: blue)"],
+        ];
+        // selectors (label → probe)
+        const selMap = {
+          ":has()": ":has(a)",
+          ":is()": ":is(a)",
+          ":where()": ":where(a)",
+          ":focus-visible": ":focus-visible",
+          ":focus-within": ":focus-within",
+          ":modal": ":modal",
+          ":popover-open": ":popover-open",
+          ":user-valid": ":user-valid",
+          ":user-invalid": ":user-invalid",
+          ":nth-child(of)": ":nth-child(1 of a)",
+          ":blank": ":blank",
+          ":dir()": ":dir(ltr)",
+          ":lang()": ":lang(en)",
+          "nesting-&": "&",
+        };
+        // at-rules — detected via CSSOM interface presence (CSS.supports can't test @-rules)
+        const atrules = [
+          ["@layer", "CSSLayerBlockRule" in window],
+          ["container-queries", "CSSContainerRule" in window],
+          ["@scope", "CSSScopeRule" in window],
+          [
+            "@property",
+            "CSSPropertyRule" in window ||
+              (window.CSS && typeof CSS.registerProperty === "function"),
+          ],
+          ["@starting-style", "CSSStartingStyleRule" in window],
+          [
+            "view-transitions",
+            typeof document.startViewTransition === "function",
+          ],
+          ["custom-highlight", "Highlight" in window],
+        ];
+        // media-feature support (does the engine understand the feature at all)
+        const mqs = [
+          ["prefers-color-scheme", "dark"],
+          ["prefers-contrast", "more"],
+          ["prefers-reduced-motion", "reduce"],
+          ["prefers-reduced-transparency", "reduce"],
+          ["forced-colors", "active"],
+          ["inverted-colors", "inverted"],
+          ["color-gamut", "srgb"],
+          ["dynamic-range", "high"],
+          ["video-dynamic-range", "high"],
+          ["pointer", "fine"],
+          ["any-pointer", "fine"],
+          ["hover", "hover"],
+          ["any-hover", "hover"],
+          ["update", "fast"],
+          ["overflow-block", "scroll"],
+          ["overflow-inline", "scroll"],
+          ["orientation", "landscape"],
+          ["display-mode", "browser"],
+          ["scripting", "enabled"],
+        ];
+
+        const bitrec = [];
+        const supported = [];
+        const rec = (label, ok) => {
+          bitrec.push(label + "=" + ok);
+          if (ok) supported.push(label);
+        };
+        props.forEach(([l, p, v]) => rec(l, P(p, v)));
+        funcs.forEach(([l, p, v]) => rec(l, P(p, v)));
+        Object.keys(selMap).forEach((l) => rec(l, SEL(selMap[l])));
+        atrules.forEach(([l, ok]) => rec(l, ok ? 1 : 0));
+        mqs.forEach(([f, v]) => rec("mq:" + f, MQ(f, v)));
+
+        const total = bitrec.length;
+        const h = hash64(bitrec.join(";"));
+        return {
+          rows: [
+            ["Support hash", grouped(h).slice(0, 24) + "…", "hl"],
+            ["Supported", supported.length + " of " + total + " probed"],
+          ],
+          raw: bitrec.join(";"),
+          bits: 5,
+          hash: h,
+          render: (body) => {
+            const c = el("div", "chips");
+            c.style.marginTop = "10px";
+            supported
+              .slice(0, 80)
+              .forEach((s) => c.appendChild(el("span", "chip", s)));
+            if (supported.length > 80)
+              c.appendChild(
+                el("span", "chip", "+" + (supported.length - 80) + " more"),
+              );
+            if (!supported.length)
+              c.appendChild(el("span", "skeleton", "CSS.supports unavailable"));
+            body.appendChild(c);
+          },
+          full: {
+            hash: h,
+            supportedCount: supported.length,
+            tested: total,
+            supported,
+          },
+        };
+      }
+
+      function collectVoices() {
+        return new Promise((resolve) => {
+          const synth = window.speechSynthesis;
+          if (!synth || !synth.getVoices) {
+            resolve(null);
+            return;
+          }
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve(synth.getVoices() || []);
+          };
+          const first = synth.getVoices();
+          if (first && first.length) {
+            finish();
+            return;
+          }
+          synth.onvoiceschanged = finish;
+          setTimeout(finish, 600); // some browsers never fire the event
+        });
+      }
+      function buildSpeech(voices) {
+        if (!voices)
+          return {
+            rows: [["Status", "SpeechSynthesis unavailable", "off"]],
+            raw: "no-speech",
+            bits: 0,
+            full: { available: false },
+          };
+        if (!voices.length)
+          return {
+            rows: [["Status", "no voices exposed", "off"]],
+            raw: "speech-empty",
+            bits: 0,
+            full: { available: true, voices: [] },
+          };
+        const names = voices.map((v) => v.name);
+        const raw = voices
+          .map((v) => v.name + "/" + v.lang + (v.localService ? "/local" : ""))
+          .join(",");
+        return {
+          rows: [
+            ["Voices", voices.length + " installed", "hl"],
+            ["Default", (voices.find((v) => v.default) || voices[0]).name],
+          ],
+          raw,
+          bits: 4,
+          render: (body) => {
+            const c = el("div", "chips");
+            c.style.marginTop = "10px";
+            names
+              .slice(0, 40)
+              .forEach((nm) => c.appendChild(el("span", "chip", nm)));
+            if (names.length > 40)
+              c.appendChild(
+                el("span", "chip", "+" + (names.length - 40) + " more"),
+              );
+            body.appendChild(c);
+          },
+          full: { count: voices.length, voices: names },
+        };
+      }
+
+      function collectWebRTC() {
+        return new Promise((resolve) => {
+          const RTCP =
+            window.RTCPeerConnection ||
+            window.webkitRTCPeerConnection ||
+            window.mozRTCPeerConnection;
+          if (!RTCP) {
+            resolve({
+              rows: [["Status", "WebRTC unavailable", "off"]],
+              raw: "no-webrtc",
+              bits: 0,
+              excluded: true,
+              full: { available: false },
+            });
+            return;
+          }
+          const ips = new Set();
+          let masked = false,
+            settled = false;
+          let pc;
+          const t = setTimeout(done, 1000);
+          function done() {
+            if (settled) return;
+            settled = true;
+            clearTimeout(t);
+            try {
+              pc && pc.close();
+            } catch (e) {}
+            const real = [...ips];
+            const rows = [];
+            if (real.length) rows.push(["Local IPs", real.join(", "), "hl"]);
+            if (masked)
+              rows.push([
+                "mDNS candidates",
+                "present (.local — IP hidden)",
+                "on",
+              ]);
+            if (!real.length && !masked)
+              rows.push(["Candidates", "none gathered"]);
+            rows.push([
+              "Leak note",
+              real.length
+                ? "real local IP exposed"
+                : "protected by mDNS masking",
+              real.length ? "hl" : "on",
+            ]);
+            resolve({
+              rows,
+              raw: real.join(","),
+              bits: real.length ? 4 : 1,
+              excluded: true,
+              note: "network-dependent — shown but kept out of the fingerprint hash",
+              full: { available: true, localIPs: real, mdnsMasked: masked },
+            });
+          }
+          try {
+            pc = new RTCP({ iceServers: [] });
+            pc.createDataChannel("probe");
+            pc.onicecandidate = (e) => {
+              if (!e || !e.candidate) {
+                done();
+                return;
+              }
+              const cand = e.candidate.candidate || "";
+              const m =
+                /([0-9a-f]{1,4}(?::[0-9a-f]{1,4}){7}|(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f-]+\.local)/i.exec(
+                  cand,
+                );
+              if (m) {
+                if (/\.local$/i.test(m[0])) masked = true;
+                else if (!/^0\.0\.0\.0/.test(m[0])) ips.add(m[0]);
+              }
+            };
+            pc.createOffer()
+              .then((o) => pc.setLocalDescription(o))
+              .catch(done);
+          } catch (e) {
+            done();
+          }
+        });
+      }
+
+      /* ---- 3. Behavioral histogram (live, dynamic) ------------------
+   Plain HTML flex bars — no SVG viewBox scaling, so nothing distorts.
+   X = time gap between two consecutive input events, bucketed in 10ms
+   steps. Y (bar height) = how many of your gaps fell in that bucket.
+   ---------------------------------------------------------------*/
+      function behavioralPanel() {
+        const BINS = 24,
+          STEP = 10,
+          MAXMS = BINS * STEP; // 24 buckets × 10ms = 0–240ms
+        const bins = new Array(BINS).fill(0);
+        let last = 0,
+          total = 0;
+
+        const wrap = el("div", "histo");
+        wrap.appendChild(el("div", "histo-legend")).innerHTML =
+          "Distribution of the <b>time gap between your consecutive input events</b>. " +
+          "Each bar is a 10&thinsp;ms bucket (0–240&thinsp;ms); its height is how often your gaps land there.";
+
+        const plot = el("div", "histo-plot");
+        const fills = [];
+        for (let i = 0; i < BINS; i++) {
+          const col = el("div", "hb");
+          const f = el("div", "hb-fill");
+          col.appendChild(f);
+          plot.appendChild(col);
+          fills.push(f);
+        }
+        wrap.appendChild(plot);
+
+        const axis = el("div", "histo-axis");
+        ["0", "60", "120", "180", "240 ms"].forEach((t) =>
+          axis.appendChild(el("span", "cap", t)),
+        );
+        wrap.appendChild(axis);
+
+        const hint = el(
+          "div",
+          "histo-hint",
+          "Waiting for input — move your pointer or type anywhere on the page…",
+        );
+        wrap.appendChild(hint);
+
+        function record(t) {
+          if (last) {
+            const dt = t - last;
+            if (dt > 2 && dt < 2000) {
+              const b = Math.min(BINS - 1, Math.floor(dt / STEP));
+              bins[b]++;
+              total++;
+            }
+          }
+          last = t;
+        }
+        const onMove = (e) => record(e.timeStamp),
+          onKey = (e) => record(e.timeStamp);
+        window.addEventListener("pointermove", onMove, { passive: true });
+        window.addEventListener("keydown", onKey);
+
+        function draw() {
+          const max = Math.max(1, ...bins);
+          fills.forEach((f, i) => {
+            const c = bins[i];
+            f.style.height = c ? 2 + (c / max) * (100 - 2) + "%" : "2px";
+            f.classList.toggle("on", c > 0);
+          });
+          hint.textContent =
+            total < 8
+              ? "Waiting for input — move your pointer or type anywhere on the page…"
+              : total +
+                " events sampled · your pointer & keyboard cadence forms a distribution as personal as handwriting — but it changes moment to moment, so it augments tracking rather than being a fixed ID.";
+        }
+        draw();
+        const iv = setInterval(draw, 350);
+        window.addEventListener("beforeunload", () => clearInterval(iv));
+
+        return { rows: [], raw: "", bits: 0, dynamic: true, node: wrap };
+      }
+
+      /* ---- Tooltip copy (what / why / entropy) ---------------------- */
+      const TIPS = {
+        navigator: {
+          what: "Properties the browser volunteers about itself and the OS/hardware underneath.",
+          why: "The User-Agent, CPU thread count and device memory narrow you to a device class; UA Client Hints can leak exact OS builds.",
+          ent: "~11 bits",
+        },
+        screen: {
+          what: "Physical display geometry, color depth and pixel ratio.",
+          why: "Uncommon resolutions and non-integer pixel ratios (scaled displays) are surprisingly rare and stable across sessions.",
+          ent: "~5 bits",
+        },
+        canvas: {
+          what: "A hidden 2D drawing rasterized to pixels, then hashed. You can see the exact image below.",
+          why: "The same drawing code produces subtly different pixels on every GPU + driver + OS font renderer combination — a classic high-signal probe.",
+          ent: "~8 bits",
+        },
+        webgl: {
+          what: "Your GPU’s unmasked vendor/renderer string, its limits, extensions and a rendered-pixel hash.",
+          why: "The GPU model string alone is highly distinguishing, and the render hash captures driver-level rasterization quirks.",
+          ent: "~10 bits",
+        },
+        css: {
+          what: "~130 probes of CSS properties, value functions, selectors, at-rules and media features the engine understands (via CSS.supports, CSSOM interfaces and matchMedia).",
+          why: "The exact support matrix — especially vendor-prefixed and bleeding-edge features — pins down the rendering engine and its version, even if the User-Agent is spoofed.",
+          ent: "~5 bits",
+        },
+        audio: {
+          what: "An oscillator run through a compressor in an offline audio graph, output samples hashed.",
+          why: "Floating-point audio DSP differs microscopically across hardware and OS audio stacks — stable and silent.",
+          ent: "~5 bits",
+        },
+        fonts: {
+          what: "Which fonts are installed, detected by measuring text width against fallback fonts.",
+          why: "Your installed-font set reflects your OS, apps and language packs — a large, slowly-changing set of bits.",
+          ent: "~8 bits",
+        },
+        math: {
+          what: "Results of transcendental math functions (acosh, sinh, pow…), hashed together.",
+          why: "Different CPU/OS/browser math libraries round the final bits differently — a small but stable tell.",
+          ent: "~2 bits",
+        },
+        jsengine: {
+          what: "Timer precision plus JS-engine quirks: the exact TypeError wording, native-function source formatting and stack-trace shape.",
+          why: "These are fixed by the engine and its version — they betray the real engine even when the User-Agent is spoofed, and a coarsened timer reveals that anti-fingerprinting is active.",
+          ent: "~3 bits",
+        },
+        speech: {
+          what: "The list of text-to-speech voices your browser exposes.",
+          why: "Installed voice sets track your OS, language packs and browser build closely — a surprisingly strong signal.",
+          ent: "~4 bits",
+        },
+        webrtc: {
+          what: "Local ICE candidates gathered by WebRTC — historically a way to read your LAN IP with no permission prompt.",
+          why: "A real local IP is highly identifying, but modern browsers mask it behind an mDNS “.local” name. Network-dependent, so it is shown but kept out of the stable hash.",
+          ent: "network-dependent",
+        },
+        locale: {
+          what: "Timezone, language, calendar and how your locale formats numbers and dates.",
+          why: "Timezone plus language plus formatting quirks geolocate and segment you, and stay constant.",
+          ent: "~4 bits",
+        },
+        media: {
+          what: "How many microphones, cameras and speakers exist (labels stay hidden without permission).",
+          why: "The count and configuration of A/V devices adds a couple of bits; labels would add far more if you grant access.",
+          ent: "~2 bits",
+        },
+        capabilities: {
+          what: "Which web platform APIs and media codecs your browser supports.",
+          why: "The exact matrix of supported/unsupported features pins down browser, version and build channel.",
+          ent: "~5 bits",
+        },
+        misc: {
+          what: "CSS media-feature preferences, connection hints, and WebRTC local-network candidates.",
+          why: "Dark mode, reduced-motion, pointer type and connection class each leak a bit; WebRTC can expose your LAN IP (shown here, but network-dependent so it stays out of the hash).",
+          ent: "~3 bits",
+        },
+        behavioral: {
+          what: "A live histogram of the time between your pointer and keyboard events.",
+          why: "Motor cadence is individual — but it is dynamic and behavioral, so it augments tracking rather than serving as a fixed ID.",
+          ent: "dynamic",
+        },
+      };
+
+      /* ---- Section / panel builders --------------------------------- */
+      function makePanel(cfg) {
+        // cfg: {tag, title, key, data}
+        const p = el("div", "panel");
+        const head = el("div", "phead");
+        head.appendChild(el("span", "ptitle", cfg.title));
+        head.appendChild(el("div", "spacer"));
+        // info
+        const tip = TIPS[cfg.key];
+        if (tip) {
+          const info = el("div", "info", "i");
+          const pop = el("div", "pop");
+          pop.innerHTML =
+            "<b>What:</b> " +
+            esc(tip.what) +
+            "<br><b>Why it leaks:</b> " +
+            esc(tip.why) +
+            '<span class="ent">Typical entropy: ' +
+            tip.ent +
+            "</span>";
+          info.appendChild(pop);
+          info.addEventListener("click", () => info.classList.toggle("open"));
+          head.appendChild(info);
+        }
+        // copy
+        const data = cfg.data;
+        if (data.raw || data.full) {
+          const cp = el("button", "mini-copy", "copy");
+          cp.addEventListener("click", () => {
+            copyText(JSON.stringify(data.full || data.raw, null, 2), () => {
+              cp.classList.add("copied");
+              cp.textContent = "copied";
+              setTimeout(() => {
+                cp.classList.remove("copied");
+                cp.textContent = "copy";
+              }, 1200);
+            });
+          });
+          head.appendChild(cp);
+        }
+        p.appendChild(head);
+
+        const body = el("div");
+        if (data.rows && data.rows.length) {
+          const kv = el("div", "kv");
+          data.rows.forEach(([k, v, cls]) => {
+            const row = el("div", "row");
+            row.appendChild(el("span", "k", k));
+            row.appendChild(el("span", "v" + (cls ? " " + cls : ""), v));
+            kv.appendChild(row);
+          });
+          body.appendChild(kv);
+        }
+        if (data.node) body.appendChild(data.node);
+        if (data.render) data.render(body);
+        p.appendChild(body);
+
+        // meter
+        if (data.dynamic) {
+          const m = el("div", "meter");
+          m.innerHTML =
+            '<div class="bits" style="color:var(--ink-3)">dynamic signal — not part of the static fingerprint hash</div>';
+          p.appendChild(m);
+        } else if (data.excluded) {
+          const m = el("div", "meter");
+          m.innerHTML =
+            '<div class="bits" style="color:var(--ink-3)">' +
+            (data.note || "shown for reference") +
+            " — excluded from the hash</div>";
+          p.appendChild(m);
+        } else {
+          const m = el("div", "meter");
+          const track = el("div", "track");
+          const fill = el("div", "fill");
+          track.appendChild(fill);
+          m.appendChild(track);
+          const bits = el("div", "bits");
+          bits.innerHTML =
+            "<b>" + data.bits.toFixed(1) + "</b> / " + MAXBITS + " bits";
+          m.appendChild(bits);
+          p.appendChild(m);
+          requestAnimationFrame(() => {
+            fill.style.width = Math.min(100, (data.bits / MAXBITS) * 100) + "%";
+          });
+        }
+        return p;
+      }
+
+      const MAXBITS = 12; // scale reference for meters (navigator is the biggest single signal)
+
+      function addSection(idx, title, panels) {
+        const head = el("div", "section-head");
+        head.appendChild(el("span", "idx", idx));
+        head.appendChild(el("h2", null, title));
+        head.appendChild(el("div", "rule"));
+        document.getElementById("sections").appendChild(head);
+        const grid = el("div", "grid" + (panels.length === 1 ? " one" : ""));
+        panels.forEach((pc) => grid.appendChild(makePanel(pc)));
+        document.getElementById("sections").appendChild(grid);
+      }
+
+      /* ---- Hero computation ----------------------------------------- */
+      function renderHero(collected, anim) {
+        // stable signals only (exclude behavioral + network-dependent webrtc). Compose the fingerprint.
+        const stableKeys = [
+          "canvas",
+          "webgl",
+          "css",
+          "audio",
+          "fonts",
+          "math",
+          "jsengine",
+          "navigator",
+          "screen",
+          "locale",
+          "speech",
+          "media",
+          "capabilities",
+          "misc",
+        ];
+        const composite = stableKeys
+          .map((k) => k + "{" + (collected[k].hash || collected[k].raw) + "}")
+          .join("||");
+        const fp = hash64(composite);
+        if (anim) anim.stop(); // stop the pre-compute scramble; settle into real values
+        animateHash(document.getElementById("fp"), grouped(fp));
+
+        // entropy: sum contributions, discount for correlation between signals.
+        const rawSum = stableKeys.reduce(
+          (s, k) => s + (collected[k].bits || 0),
+          0,
+        );
+        const eff = Math.round(rawSum * 0.62); // correlation discount → honest headline
+        const odds = Math.pow(2, eff);
+        settleNumbers(eff); // jitter the scrambling numbers, then lock to final
+
+        // verdict + rarity
+        let verdict, color, label;
+        if (eff < 10) {
+          verdict = "fairly common";
+          color = "var(--cyan)";
+          label = "Blends into the crowd";
+        } else if (eff < 15) {
+          verdict = "uncommon";
+          color = "var(--amber)";
+          label = "Uncommon — narrows you down";
+        } else if (eff < 20) {
+          verdict = "highly identifying";
+          color = "var(--amber)";
+          label = "Highly identifying";
+        } else {
+          verdict = "almost certainly unique";
+          color = "var(--red)";
+          label = "Almost certainly unique";
+        }
+        document.getElementById("verdict").innerHTML =
+          'Your browser is <strong style="color:' +
+          color +
+          '">' +
+          verdict +
+          "</strong>. It reveals about <strong>" +
+          eff +
+          " bits</strong> of entropy — combining these otherwise-weak signals is enough to single you out and re-recognize you on later visits, with no cookies involved.";
+        const rar = document.getElementById("rarity");
+        rar.style.display = "inline-flex";
+        rar.querySelector(".swatch").style.background = color;
+        rar.querySelector(".rtxt").textContent = label;
+        rar.querySelector(".rtxt").style.color = color;
+
+        // spectrum: one segment per signal, width ∝ bits, amber intensity ∝ bits
+        const spec = document.getElementById("spectrum");
+        spec.innerHTML = "";
+        const maxb = Math.max(
+          ...stableKeys.map((k) => collected[k].bits || 0),
+          1,
+        );
+        stableKeys.forEach((k) => {
+          const b = collected[k].bits || 0;
+          if (b <= 0) return;
+          const seg = el("div", "seg");
+          seg.style.flex = b;
+          const t = 0.35 + 0.65 * (b / maxb);
+          seg.style.background = "rgba(255,180,58," + t.toFixed(2) + ")";
+          seg.title = k + " · ~" + b + " bits";
+          spec.appendChild(seg);
+        });
+
+        return { fp, eff };
+      }
+      function fmtBig(n) {
+        if (n < 1000) return Math.round(n).toString();
+        const units = [
+          ["B", 1e9],
+          ["M", 1e6],
+          ["K", 1e3],
+        ];
+        for (const [u, v] of units) {
+          if (n >= v) return (n / v).toFixed(n / v < 10 ? 1 : 0) + u;
+        }
+        return Math.round(n).toString();
+      }
+
+      /* ---- Clock ---------------------------------------------------- */
+      function tickClock() {
+        const d = new Date();
+        document.getElementById("clock").textContent =
+          d.toISOString().slice(0, 19).replace("T", " ") + " UTC";
+      }
+      tickClock();
+      setInterval(tickClock, 1000);
+
+      /* ---- Hash scramble→settle animation --------------------------- */
+      function animateHash(elm, target) {
+        const HEX = "0123456789ABCDEF";
+        const idxs = [];
+        for (let i = 0; i < target.length; i++)
+          if (target[i] !== " ") idxs.push(i);
+        elm.classList.remove("computing");
+        let settled = 0,
+          frame = 0;
+        const iv = setInterval(() => {
+          frame++;
+          // ~12 frames of pure scramble first, then settle one glyph every 2 frames, left→right
+          if (frame > 12 && frame % 2 === 0 && settled < idxs.length) settled++;
+          const boundary =
+            settled >= idxs.length ? target.length : idxs[settled];
+          let scr = "";
+          for (let i = boundary; i < target.length; i++)
+            scr += target[i] === " " ? " " : HEX[(Math.random() * 16) | 0];
+          elm.innerHTML =
+            '<span class="fp-set">' +
+            esc(target.slice(0, boundary)) +
+            "</span>" +
+            '<span class="fp-scr">' +
+            scr +
+            "</span>";
+          if (settled >= idxs.length) {
+            clearInterval(iv);
+            elm.textContent = target;
+          }
+        }, 30);
+      }
+
+      /* ---- Pre-compute scramble: keep the whole hero "live" while the
+     async collectors run, instead of a placeholder that flashes. ---- */
+      function heroScrambler() {
+        const HEX = "0123456789ABCDEF";
+        const TMPL = "XXXX XXXX XXXX XXXX XXXX XXXX";
+        const fpEl = document.getElementById("fp");
+        const bitsEl = document.getElementById("bits");
+        const oddsEl = document.getElementById("odds");
+        const totEl = document.getElementById("spectrum-total");
+        const specEl = document.getElementById("spectrum");
+        let running = true;
+        function tick() {
+          if (!running) return;
+          let s = "";
+          for (const ch of TMPL)
+            s += ch === " " ? " " : HEX[(Math.random() * 16) | 0];
+          fpEl.innerHTML = '<span class="fp-scr">' + s + "</span>";
+          const b = 6 + ((Math.random() * 22) | 0);
+          bitsEl.textContent = b;
+          totEl.textContent = "≈ " + b + " bits";
+          oddsEl.innerHTML =
+            "roughly <b>1 in " +
+            fmtBig(Math.pow(2, b)) +
+            "</b> browsers share this profile";
+          specEl.innerHTML = "";
+          for (let i = 0; i < 8; i++) {
+            const seg = el("div", "seg");
+            seg.style.flex = (0.4 + Math.random() * 1.2).toFixed(2);
+            seg.style.background =
+              "rgba(255,180,58," +
+              (0.14 + Math.random() * 0.4).toFixed(2) +
+              ")";
+            specEl.appendChild(seg);
+          }
+        }
+        const iv = setInterval(tick, 70);
+        tick();
+        return {
+          stop() {
+            running = false;
+            clearInterval(iv);
+          },
+        };
+      }
+
+      /* ---- Settle the scrambling hero numbers into their final values -- */
+      function settleNumbers(eff) {
+        const bitsEl = document.getElementById("bits");
+        const oddsEl = document.getElementById("odds");
+        const totEl = document.getElementById("spectrum-total");
+        const finalOdds =
+          "roughly <b>1 in " +
+          fmtBig(Math.pow(2, eff)) +
+          "</b> browsers share this profile";
+        let frame = 0;
+        const iv = setInterval(() => {
+          frame++;
+          if (frame < 11) {
+            const j = Math.max(1, eff + ((Math.random() * 7) | 0) - 3); // brief jitter near the target
+            bitsEl.textContent = j;
+            totEl.textContent = "≈ " + j + " bits";
+            oddsEl.innerHTML =
+              "roughly <b>1 in " +
+              fmtBig(Math.pow(2, j)) +
+              "</b> browsers share this profile";
+          } else {
+            bitsEl.textContent = eff;
+            totEl.textContent = "≈ " + eff + " bits";
+            oddsEl.innerHTML = finalOdds;
+            clearInterval(iv);
+          }
+        }, 28);
+      }
+
+      /* ══════════════ BOOT ══════════════ */
+      (async function boot() {
+        const heroAnim = heroScrambler(); // start the live scramble immediately
+        const c = {};
+        c.screen = collectScreen();
+        c.locale = collectLocale();
+        c.canvas = collectCanvas();
+        c.webgl = collectWebGL();
+        c.css = collectCSS();
+        c.fonts = collectFonts();
+        c.math = collectMath();
+        c.jsengine = collectJSEngine();
+        c.capabilities = collectCapabilities();
+        // async collectors
+        c.navigator = await collectNavigator();
+        c.audio = await collectAudio();
+        c.media = await collectMedia();
+        c.misc = await collectMisc();
+        c.speech = buildSpeech(await collectVoices());
+        c.webrtc = await collectWebRTC();
+        // WebRTC is a small, network-dependent signal — fold it into the network panel
+        // rather than giving it a sparse card of its own (still its own entry in the JSON report).
+        if (c.webrtc && c.webrtc.rows && c.webrtc.rows.length) {
+          c.misc.rows.push(...c.webrtc.rows);
+          c.misc.full.webrtc = c.webrtc.full;
+        }
+        const behav = behavioralPanel();
+
+        // Build sections
+        addSection("01", "Identity & hardware", [
+          {
+            tag: "NAVIGATOR",
+            title: "Navigator & UA",
+            key: "navigator",
+            data: c.navigator,
+          },
+          {
+            tag: "DISPLAY",
+            title: "Screen & display",
+            key: "screen",
+            data: c.screen,
+          },
+          {
+            tag: "JS ENGINE",
+            title: "JavaScript engine",
+            key: "jsengine",
+            data: c.jsengine,
+          },
+        ]);
+        addSection("02", "Rendering stack", [
+          {
+            tag: "CANVAS 2D",
+            title: "Canvas fingerprint",
+            key: "canvas",
+            data: c.canvas,
+          },
+          { tag: "WEBGL", title: "GPU / WebGL", key: "webgl", data: c.webgl },
+          { tag: "CSS", title: "CSS engine support", key: "css", data: c.css },
+        ]);
+        addSection("03", "Signal processing", [
+          {
+            tag: "WEBAUDIO",
+            title: "Audio DSP fingerprint",
+            key: "audio",
+            data: c.audio,
+          },
+          {
+            tag: "MATH",
+            title: "Floating-point math",
+            key: "math",
+            data: c.math,
+          },
+          {
+            tag: "FONTS",
+            title: "Installed fonts",
+            key: "fonts",
+            data: c.fonts,
+          },
+          {
+            tag: "SPEECH",
+            title: "Speech-synthesis voices",
+            key: "speech",
+            data: c.speech,
+          },
+        ]);
+        addSection("04", "Environment & locale", [
+          {
+            tag: "INTL",
+            title: "Locale & time",
+            key: "locale",
+            data: c.locale,
+          },
+          {
+            tag: "DEVICES",
+            title: "Media devices",
+            key: "media",
+            data: c.media,
+          },
+          {
+            tag: "CSS/NET",
+            title: "Network & preferences",
+            key: "misc",
+            data: c.misc,
+          },
+          {
+            tag: "PLATFORM",
+            title: "Capability matrix",
+            key: "capabilities",
+            data: c.capabilities,
+          },
+        ]);
+        addSection("05", "Behavioral (live)", [
+          {
+            tag: "TIMING",
+            title: "Pointer & keyboard cadence",
+            key: "behavioral",
+            data: behav,
+          },
+        ]);
+
+        const hero = renderHero(c, heroAnim);
+
+        // Build the JSON report
+        Object.keys(c).forEach((k) => {
+          REPORT.signals[k] = {
+            bits: c[k].bits,
+            value: c[k].full !== undefined ? c[k].full : c[k].raw,
+          };
+        });
+        REPORT.fingerprint = hero.fp;
+        REPORT.estimatedEntropyBits = hero.eff;
+        REPORT.generatedAt = new Date().toISOString();
+
+        document.getElementById("copy-fp").addEventListener("click", (e) => {
+          copyText(grouped(hero.fp), () => {
+            e.target.classList.add("copied");
+            e.target.textContent = "✓ copied";
+            setTimeout(() => {
+              e.target.classList.remove("copied");
+              e.target.textContent = "⧉ Copy fingerprint";
+            }, 1400);
+          });
+        });
+        document.getElementById("copy-json").addEventListener("click", (e) => {
+          copyText(JSON.stringify(REPORT, null, 2), () => {
+            e.target.classList.add("copied");
+            e.target.textContent = "✓ copied";
+            setTimeout(() => {
+              e.target.classList.remove("copied");
+              e.target.textContent = "↧ Copy full report (JSON)";
+            }, 1400);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
