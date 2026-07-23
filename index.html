@@ -193,11 +193,6 @@
         text-shadow: 0 0 26px rgba(255, 180, 58, 0.32);
         min-height: 1.1em;
       }
-      .fp.computing {
-        color: var(--ink-3);
-        text-shadow: none;
-        letter-spacing: 0.02em;
-      }
       .fp .fp-set {
         color: var(--amber);
       }
@@ -292,6 +287,39 @@
       /* entropy spectrum bar (composite of contributions) */
       .spectrum {
         margin-top: 16px;
+        position: relative;
+      }
+      .spectrum-track .seg {
+        cursor: help;
+      }
+      .spec-pop {
+        position: absolute;
+        z-index: 40;
+        top: calc(100% + 6px);
+        left: 0;
+        transform: translateX(-50%) translateY(-4px);
+        white-space: nowrap;
+        background: var(--surface-2);
+        border: 1px solid var(--hair-2);
+        border-radius: 8px;
+        padding: 7px 11px;
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--ink-2);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        visibility: hidden;
+        transition: 0.14s;
+        pointer-events: none;
+      }
+      .spec-pop.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%);
+      }
+      .spec-pop b {
+        color: var(--ink);
       }
       .spectrum-label {
         font-family: var(--mono);
@@ -412,7 +440,8 @@
         background: var(--surface);
         padding: 16px 16px 14px;
         position: relative;
-        overflow: hidden;
+        /* visible so info & diff popovers can escape short panels */
+        overflow: visible;
       }
       .panel:hover {
         border-color: var(--hair-2);
@@ -432,6 +461,126 @@
         flex: 1;
       }
 
+      /* stability badge */
+      .stab {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid var(--hair);
+        border-radius: 4px;
+        padding: 2px 6px;
+        color: var(--ink-3);
+        cursor: default;
+        white-space: nowrap;
+      }
+      .stab.live {
+        color: var(--cyan);
+        border-color: rgba(78, 201, 212, 0.4);
+      }
+
+      /* change marker on panels that differ from the last test */
+      .chgdot {
+        display: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 7px var(--amber);
+        flex: none;
+        cursor: default;
+      }
+      body.diff-on .chgdot {
+        display: inline-block;
+      }
+
+      /* changed rows (visible only while the diff toggle is on) */
+      .kv .row {
+        position: relative;
+      }
+      body.diff-on .kv .row.chg {
+        border-left: 2px solid var(--amber);
+        padding-left: 7px;
+        margin-left: -9px;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 180, 58, 0.09),
+          rgba(255, 180, 58, 0) 70%
+        );
+        cursor: help;
+      }
+      .diffpop {
+        position: absolute;
+        z-index: 40;
+        top: calc(100% + 5px);
+        left: 0;
+        max-width: 330px;
+        background: var(--surface-2);
+        border: 1px solid var(--hair-2);
+        border-radius: 8px;
+        padding: 9px 11px;
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--ink-2);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: 0.14s;
+        word-break: break-word;
+        pointer-events: none;
+      }
+      .diffpop b {
+        color: var(--ink);
+      }
+      body.diff-on .kv .row.chg:hover .diffpop,
+      body.diff-on .kv .row.chg.open .diffpop {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+      }
+
+      /* diff toggle in the hero */
+      .diff-wrap {
+        margin-left: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+      }
+      .diff-wrap[hidden] {
+        display: none;
+      }
+      .diff-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-2);
+        cursor: pointer;
+        user-select: none;
+      }
+      .diff-toggle:hover {
+        color: var(--ink);
+      }
+      .diff-toggle input {
+        accent-color: var(--amber);
+        width: 13px;
+        height: 13px;
+        margin: 0;
+        cursor: pointer;
+      }
+      .diff-status {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--amber);
+      }
+      .diff-status:empty {
+        display: none;
+      }
+
       /* info tooltip */
       .info {
         position: relative;
@@ -439,6 +588,8 @@
         height: 16px;
         flex: none;
         cursor: help;
+        background: transparent;
+        padding: 0;
         border: 1px solid var(--hair-2);
         border-radius: 50%;
         color: var(--ink-3);
@@ -449,9 +600,14 @@
         text-align: center;
         user-select: none;
       }
-      .info:hover {
+      .info:hover,
+      .info:focus-visible {
         color: var(--amber);
         border-color: var(--amber-dim);
+      }
+      .info:focus-visible {
+        outline: 1px solid var(--amber-dim);
+        outline-offset: 2px;
       }
       .info .pop {
         position: absolute;
@@ -477,6 +633,7 @@
         letter-spacing: 0;
       }
       .info:hover .pop,
+      .info:focus-visible .pop,
       .info.open .pop {
         opacity: 1;
         visibility: visible;
@@ -570,25 +727,6 @@
       }
       .meter .bits b {
         color: var(--amber);
-      }
-
-      .mini-copy {
-        font-family: var(--mono);
-        font-size: 10px;
-        color: var(--ink-3);
-        background: transparent;
-        border: 1px solid var(--hair);
-        border-radius: 5px;
-        padding: 3px 7px;
-        cursor: pointer;
-      }
-      .mini-copy:hover {
-        color: var(--amber);
-        border-color: var(--amber-dim);
-      }
-      .mini-copy.copied {
-        color: var(--cyan);
-        border-color: var(--cyan);
       }
 
       canvas.artifact {
@@ -702,9 +840,6 @@
         font-size: 9.5px;
         color: var(--ink-3);
       }
-      .histo-axis .cap {
-        color: var(--ink-3);
-      }
       .histo-hint {
         font-family: var(--mono);
         font-size: 11px;
@@ -806,7 +941,9 @@
             </div>
             <div class="hero-fine">
               Entropy is a heuristic estimate from public research, not a
-              measurement of the global population.
+              measurement of the global population. The last-test baseline
+              lives only in your browser's localStorage — itself the kind of
+              local state trackers love.
             </div>
           </div>
         </div>
@@ -816,6 +953,17 @@
           <button class="btn primary" id="copy-json">
             ↧ Copy full report (JSON)
           </button>
+          <div class="diff-wrap" id="diff-wrap" hidden>
+            <label class="diff-toggle" id="diff-toggle">
+              <input type="checkbox" id="diff-check" />
+              <span
+                >Highlight changes since last test (<span id="diff-when"
+                  >—</span
+                >)</span
+              >
+            </label>
+            <span class="diff-status" id="diff-status"></span>
+          </div>
         </div>
       </section>
 
@@ -835,7 +983,8 @@
    ══════════════════════════════════════════════════════════════ */
 
       /* ---- 1. Hashing ------------------------------------------------ */
-      // 53-bit-ish FNV-based hash → hex. Deterministic, sync, no deps.
+      // FNV-style mixing → 96-bit hex string. Deterministic, sync, no deps.
+      // Not cryptographic — fine for a demo ID, not for security.
       function hash64(str) {
         let h1 = 0x811c9dc5 >>> 0,
           h2 = 0xc9dc5118 >>> 0;
@@ -922,6 +1071,7 @@
         const n = navigator,
           rows = [],
           parts = [];
+        let bits = 8; // base; more exposed surface earns more below
         const add = (k, v, cls) => {
           rows.push([k, v == null ? "—" : String(v), cls]);
           if (v != null) parts.push(k + "=" + v);
@@ -935,6 +1085,7 @@
           "Device memory",
           n.deviceMemory ? n.deviceMemory + " GB" : "not exposed",
         );
+        if (n.deviceMemory) bits += 2;
         add("Max touch pts", n.maxTouchPoints);
         add("Do Not Track", n.doNotTrack == null ? "unset" : n.doNotTrack);
         const plugins = Array.from(n.plugins || []).map((p) => p.name);
@@ -1000,28 +1151,39 @@
                     .join(", "),
                 );
               full.highEntropy = he;
+              bits += 2;
             } catch (e) {}
           }
         }
-        return { rows, raw: parts.join("|"), bits: 12, full };
+        return { rows, raw: parts.join("|"), bits, full };
       }
 
       function collectScreen() {
         const s = screen,
           rows = [],
           parts = [];
-        const add = (k, v, cls) => {
+        const add = (k, v, cls, hashIt = true) => {
           rows.push([k, String(v), cls]);
-          parts.push(k + "=" + v);
+          if (hashIt) parts.push(k + "=" + v);
         };
-        add("Resolution", s.width + " × " + s.height, "hl");
+        const res = s.width + " × " + s.height;
+        add("Resolution", res, "hl");
         add("Available", s.availWidth + " × " + s.availHeight);
         add("Color depth", s.colorDepth + "-bit");
         add("Pixel ratio", window.devicePixelRatio);
-        add("Inner window", window.innerWidth + " × " + window.innerHeight);
+        // window geometry & orientation change with resizes, zoom, devtools
+        // and device rotation — shown, but kept out of the stable hash
+        add(
+          "Inner window",
+          window.innerWidth + " × " + window.innerHeight,
+          null,
+          false,
+        );
         add(
           "Orientation",
           (screen.orientation && screen.orientation.type) || "unknown",
+          null,
+          false,
         );
         let mon = "single / not exposed";
         if (window.screen && "isExtended" in window.screen)
@@ -1029,10 +1191,33 @@
             ? "extended (multi-monitor)"
             : "single display";
         add("Multi-monitor", mon);
+        // common resolutions carry less identifying signal
+        const COMMON = [
+          "1920 × 1080",
+          "1366 × 768",
+          "1536 × 864",
+          "1440 × 900",
+          "2560 × 1440",
+          "1280 × 720",
+          "1600 × 900",
+          "1680 × 1050",
+          "1280 × 800",
+          "3840 × 2160",
+          "2560 × 1600",
+          "2880 × 1800",
+          "360 × 800",
+          "390 × 844",
+          "393 × 873",
+          "412 × 915",
+          "375 × 667",
+          "414 × 896",
+        ];
+        let bits = COMMON.includes(res) ? 3 : 5;
+        if (window.devicePixelRatio % 1 !== 0) bits += 1; // scaled displays are rarer
         return {
           rows,
           raw: parts.join("|"),
-          bits: 5,
+          bits,
           full: {
             width: s.width,
             height: s.height,
@@ -1146,7 +1331,7 @@
         }
         const h = hash64(raw);
         return {
-          rows: [["Pixel hash", grouped(h).slice(0, 29) + "…", "hl"]],
+          rows: [["Pixel hash", grouped(h), "hl"]],
           raw,
           bits: 8,
           hash: h,
@@ -1422,6 +1607,8 @@
         });
         span.remove();
         const raw = present.join(",");
+        // a larger detected set carries more distinguishing power
+        const bits = Math.max(1, Math.min(10, Math.round(present.length / 5)));
         return {
           rows: [
             [
@@ -1431,7 +1618,7 @@
             ],
           ],
           raw,
-          bits: 8,
+          bits,
           fonts: present,
           render: (body) => {
             const c = el("div", "chips");
@@ -1599,9 +1786,9 @@
       async function collectMisc() {
         const rows = [],
           parts = [];
-        const add = (k, v, cls) => {
+        const add = (k, v, cls, hashIt = true) => {
           rows.push([k, String(v), cls]);
-          parts.push(k + "=" + v);
+          if (hashIt) parts.push(k + "=" + v);
         };
         const mq = (q) => window.matchMedia && window.matchMedia(q).matches;
         add(
@@ -1666,16 +1853,19 @@
         );
         add("Hover", mq("(hover: hover)") ? "hover-capable" : "no-hover");
         add("HDR", mq("(dynamic-range: high)") ? "high" : "standard");
+        // live network measurements & disk-derived quota jitter between
+        // page loads — shown, but kept out of the stable hash
         const conn = navigator.connection || navigator.mozConnection;
         if (conn) {
           add(
             "Connection",
             (conn.effectiveType || "?") +
               (conn.downlink ? " · ~" + conn.downlink + " Mbps" : ""),
+            null,
+            false,
           );
-          if (conn.rtt != null) add("Est. RTT", conn.rtt + " ms");
+          if (conn.rtt != null) add("Est. RTT", conn.rtt + " ms", null, false);
         } else add("Connection", "not exposed", "off");
-        // storage quota → rough disk size
         try {
           if (navigator.storage && navigator.storage.estimate) {
             const est = await navigator.storage.estimate();
@@ -1683,6 +1873,8 @@
               add(
                 "Storage quota",
                 "~" + (est.quota / 1073741824).toFixed(1) + " GB available",
+                null,
+                false,
               );
           }
         } catch (e) {}
@@ -1759,11 +1951,24 @@
             prev = t;
           }
           res = min === Infinity ? 0 : min;
-          add(
+          // display the precise measurement, but hash only a coarse class —
+          // the exact minimum delta jitters from run to run
+          const bucket =
+            res === 0
+              ? "none"
+              : res < 0.001
+                ? "sub-µs"
+                : res < 0.02
+                  ? "µs-class"
+                  : res < 0.5
+                    ? "100µs-class"
+                    : "ms-class";
+          rows.push([
             "Timer resolution",
             (res < 0.001 ? "<0.001" : res.toFixed(4)) + " ms",
             "hl",
-          );
+          ]);
+          parts.push("Timer resolution=" + bucket);
         } catch (e) {
           add("Timer resolution", "n/a");
         }
@@ -2013,11 +2218,11 @@
             const c = el("div", "chips");
             c.style.marginTop = "10px";
             supported
-              .slice(0, 80)
+              .slice(0, 36)
               .forEach((s) => c.appendChild(el("span", "chip", s)));
-            if (supported.length > 80)
+            if (supported.length > 36)
               c.appendChild(
-                el("span", "chip", "+" + (supported.length - 80) + " more"),
+                el("span", "chip", "+" + (supported.length - 36) + " more"),
               );
             if (!supported.length)
               c.appendChild(el("span", "skeleton", "CSS.supports unavailable"));
@@ -2039,19 +2244,26 @@
             resolve(null);
             return;
           }
+          // the voice list is populated asynchronously; racing it makes the
+          // fingerprint flap between empty and full. Poll + listen until we
+          // get a non-empty list, with a deadline for voiceless systems.
           let settled = false;
+          let poll, deadline;
           const finish = () => {
             if (settled) return;
             settled = true;
+            clearInterval(poll);
+            clearTimeout(deadline);
             resolve(synth.getVoices() || []);
           };
-          const first = synth.getVoices();
-          if (first && first.length) {
-            finish();
-            return;
-          }
-          synth.onvoiceschanged = finish;
-          setTimeout(finish, 600); // some browsers never fire the event
+          const tryNow = () => {
+            const v = synth.getVoices();
+            if (v && v.length) finish();
+          };
+          synth.onvoiceschanged = tryNow;
+          poll = setInterval(tryNow, 200);
+          deadline = setTimeout(finish, 1500);
+          tryNow();
         });
       }
       function buildSpeech(voices) {
@@ -2079,7 +2291,7 @@
             ["Default", (voices.find((v) => v.default) || voices[0]).name],
           ],
           raw,
-          bits: 4,
+          bits: Math.min(6, 2 + Math.round(names.length / 40)),
           render: (body) => {
             const c = el("div", "chips");
             c.style.marginTop = "10px";
@@ -2137,9 +2349,9 @@
               rows.push(["Candidates", "none gathered"]);
             rows.push([
               "Leak note",
-              real.length
+              (real.length
                 ? "real local IP exposed"
-                : "protected by mDNS masking",
+                : "protected by mDNS masking") + " · excluded from hash",
               real.length ? "hl" : "on",
             ]);
             resolve({
@@ -2209,7 +2421,7 @@
 
         const axis = el("div", "histo-axis");
         ["0", "60", "120", "180", "240 ms"].forEach((t) =>
-          axis.appendChild(el("span", "cap", t)),
+          axis.appendChild(el("span", "tick", t)),
         );
         wrap.appendChild(axis);
 
@@ -2250,8 +2462,7 @@
                 " events sampled · your pointer & keyboard cadence forms a distribution as personal as handwriting — but it changes moment to moment, so it augments tracking rather than being a fixed ID.";
         }
         draw();
-        const iv = setInterval(draw, 350);
-        window.addEventListener("beforeunload", () => clearInterval(iv));
+        setInterval(draw, 350);
 
         return { rows: [], raw: "", bits: 0, dynamic: true, node: wrap };
       }
@@ -2261,12 +2472,12 @@
         navigator: {
           what: "Properties the browser volunteers about itself and the OS/hardware underneath.",
           why: "The User-Agent, CPU thread count and device memory narrow you to a device class; UA Client Hints can leak exact OS builds.",
-          ent: "~11 bits",
+          ent: "8–12 bits — more exposed surface earns more",
         },
         screen: {
           what: "Physical display geometry, color depth and pixel ratio.",
-          why: "Uncommon resolutions and non-integer pixel ratios (scaled displays) are surprisingly rare and stable across sessions.",
-          ent: "~5 bits",
+          why: "Uncommon resolutions and non-integer pixel ratios (scaled displays) are surprisingly rare and stable across sessions. Window geometry and orientation are shown but not hashed — they change too easily.",
+          ent: "3–6 bits — common resolutions score lower",
         },
         canvas: {
           what: "A hidden 2D drawing rasterized to pixels, then hashed. You can see the exact image below.",
@@ -2291,7 +2502,7 @@
         fonts: {
           what: "Which fonts are installed, detected by measuring text width against fallback fonts.",
           why: "Your installed-font set reflects your OS, apps and language packs — a large, slowly-changing set of bits.",
-          ent: "~8 bits",
+          ent: "1–10 bits — scales with the detected set",
         },
         math: {
           what: "Results of transcendental math functions (acosh, sinh, pow…), hashed together.",
@@ -2300,13 +2511,13 @@
         },
         jsengine: {
           what: "Timer precision plus JS-engine quirks: the exact TypeError wording, native-function source formatting and stack-trace shape.",
-          why: "These are fixed by the engine and its version — they betray the real engine even when the User-Agent is spoofed, and a coarsened timer reveals that anti-fingerprinting is active.",
+          why: "These are fixed by the engine and its version — they betray the real engine even when the User-Agent is spoofed, and a coarsened timer reveals that anti-fingerprinting is active. The timer probe is bucketed before hashing because the exact measurement jitters.",
           ent: "~3 bits",
         },
         speech: {
           what: "The list of text-to-speech voices your browser exposes.",
           why: "Installed voice sets track your OS, language packs and browser build closely — a surprisingly strong signal.",
-          ent: "~4 bits",
+          ent: "up to 6 bits — scales with the voice count",
         },
         webrtc: {
           what: "Local ICE candidates gathered by WebRTC — historically a way to read your LAN IP with no permission prompt.",
@@ -2330,7 +2541,7 @@
         },
         misc: {
           what: "CSS media-feature preferences, connection hints, and WebRTC local-network candidates.",
-          why: "Dark mode, reduced-motion, pointer type and connection class each leak a bit; WebRTC can expose your LAN IP (shown here, but network-dependent so it stays out of the hash).",
+          why: "Dark mode, reduced-motion, pointer type and display class each leak a bit. Live network metrics (link speed, RTT, storage quota) and WebRTC candidates are shown but kept out of the hash — they change between visits.",
           ent: "~3 bits",
         },
         behavioral: {
@@ -2340,17 +2551,114 @@
         },
       };
 
+      /* ---- Signal stability: how trustworthy each is as a persistent ID */
+      const STABILITY = {
+        navigator: ["stable", "Fixed by the browser build and hardware."],
+        screen: [
+          "stable",
+          "Changes only with hardware, OS scaling or browser zoom. Window geometry is shown but not hashed.",
+        ],
+        jsengine: [
+          "stable",
+          "Fixed by the engine version. The timer probe is bucketed before hashing.",
+        ],
+        canvas: [
+          "drifts",
+          "Stable in most browsers, but Brave, Safari private mode and Firefox resistFingerprinting re-randomize it per session or per load.",
+        ],
+        webgl: [
+          "drifts",
+          "Stable in most browsers; anti-fingerprinting modes randomize the render hash.",
+        ],
+        css: ["stable", "Changes only when the browser updates."],
+        audio: [
+          "drifts",
+          "Stable in most browsers; Safari private mode and Brave inject noise.",
+        ],
+        math: ["stable", "Fixed by the CPU and math library."],
+        fonts: ["stable", "Changes only when fonts are installed or removed."],
+        speech: [
+          "drifts",
+          "The voice list loads asynchronously and follows OS language packs.",
+        ],
+        locale: [
+          "stable",
+          "Changes only with travel or language settings.",
+        ],
+        media: [
+          "drifts",
+          "Changes when you plug or unplug cameras, mics and headphones.",
+        ],
+        capabilities: ["stable", "Changes only when the browser updates."],
+        misc: [
+          "drifts",
+          "Follows OS theme and network state; the volatile network metrics are excluded from the hash.",
+        ],
+        behavioral: [
+          "live",
+          "Recomputed continuously from your input; never part of the hash.",
+        ],
+      };
+
+      /* ---- Diff vs the last test ------------------------------------
+   Baseline is saved to localStorage on every visit; DIFF is computed
+   against it before the panels are built. Keyed by signal:
+   { digestChanged: bool, rowChanges: { rowKey: previousValue } } */
+      let DIFF = {};
+
+      function relTime(iso) {
+        const s = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (!isFinite(s) || s < 60) return "moments ago";
+        if (s < 3600) return Math.round(s / 60) + " min ago";
+        if (s < 86400) return Math.round(s / 3600) + " h ago";
+        return Math.round(s / 86400) + " d ago";
+      }
+
       /* ---- Section / panel builders --------------------------------- */
+      function closeInfoPops() {
+        document.querySelectorAll(".info.open").forEach((i) => {
+          i.classList.remove("open");
+          i.setAttribute("aria-expanded", "false");
+        });
+        document
+          .querySelectorAll(".kv .row.chg.open")
+          .forEach((r) => r.classList.remove("open"));
+      }
+      document.addEventListener("click", closeInfoPops);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeInfoPops();
+      });
+
       function makePanel(cfg) {
-        // cfg: {tag, title, key, data}
+        // cfg: {title, key, data}
         const p = el("div", "panel");
         const head = el("div", "phead");
         head.appendChild(el("span", "ptitle", cfg.title));
         head.appendChild(el("div", "spacer"));
+        const diff = DIFF[cfg.key];
+        if (
+          diff &&
+          (diff.digestChanged || Object.keys(diff.rowChanges).length)
+        ) {
+          const dot = el("span", "chgdot");
+          dot.title = diff.digestChanged
+            ? "Changed since last test — affects the fingerprint"
+            : "Changed since last test — display-only values";
+          head.appendChild(dot);
+        }
+        const stab = STABILITY[cfg.key];
+        if (stab) {
+          const s = el("span", "stab " + stab[0], stab[0]);
+          s.title = stab[1];
+          head.appendChild(s);
+        }
         // info
         const tip = TIPS[cfg.key];
         if (tip) {
-          const info = el("div", "info", "i");
+          const info = el("button", "info", "i");
+          info.type = "button";
+          info.setAttribute("aria-label", "About the " + cfg.title + " signal");
+          info.setAttribute("aria-expanded", "false");
           const pop = el("div", "pop");
           pop.innerHTML =
             "<b>What:</b> " +
@@ -2361,26 +2669,20 @@
             tip.ent +
             "</span>";
           info.appendChild(pop);
-          info.addEventListener("click", () => info.classList.toggle("open"));
+          info.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const wasOpen = info.classList.contains("open");
+            closeInfoPops();
+            if (!wasOpen) {
+              info.classList.add("open");
+              info.setAttribute("aria-expanded", "true");
+            }
+          });
           head.appendChild(info);
         }
-        // copy
-        const data = cfg.data;
-        if (data.raw || data.full) {
-          const cp = el("button", "mini-copy", "copy");
-          cp.addEventListener("click", () => {
-            copyText(JSON.stringify(data.full || data.raw, null, 2), () => {
-              cp.classList.add("copied");
-              cp.textContent = "copied";
-              setTimeout(() => {
-                cp.classList.remove("copied");
-                cp.textContent = "copy";
-              }, 1200);
-            });
-          });
-          head.appendChild(cp);
-        }
         p.appendChild(head);
+
+        const data = cfg.data;
 
         const body = el("div");
         if (data.rows && data.rows.length) {
@@ -2389,6 +2691,22 @@
             const row = el("div", "row");
             row.appendChild(el("span", "k", k));
             row.appendChild(el("span", "v" + (cls ? " " + cls : ""), v));
+            const old = diff && diff.rowChanges[k];
+            if (old != null) {
+              row.classList.add("chg");
+              const dp = el("div", "diffpop");
+              dp.innerHTML =
+                "<b>last test:</b> " + esc(old) + "<br><b>now:</b> " + esc(v);
+              row.appendChild(dp);
+              // tap fallback for touch devices (hover handles pointers)
+              row.addEventListener("click", (ev) => {
+                if (!document.body.classList.contains("diff-on")) return;
+                ev.stopPropagation();
+                const wasOpen = row.classList.contains("open");
+                closeInfoPops();
+                if (!wasOpen) row.classList.add("open");
+              });
+            }
             kv.appendChild(row);
           });
           body.appendChild(kv);
@@ -2442,39 +2760,43 @@
       }
 
       /* ---- Hero computation ----------------------------------------- */
+      // stable signals only (exclude behavioral + network-dependent webrtc)
+      const STABLE_KEYS = [
+        "canvas",
+        "webgl",
+        "css",
+        "audio",
+        "fonts",
+        "math",
+        "jsengine",
+        "navigator",
+        "screen",
+        "locale",
+        "speech",
+        "media",
+        "capabilities",
+        "misc",
+      ];
       function renderHero(collected, anim) {
-        // stable signals only (exclude behavioral + network-dependent webrtc). Compose the fingerprint.
-        const stableKeys = [
-          "canvas",
-          "webgl",
-          "css",
-          "audio",
-          "fonts",
-          "math",
-          "jsengine",
-          "navigator",
-          "screen",
-          "locale",
-          "speech",
-          "media",
-          "capabilities",
-          "misc",
-        ];
-        const composite = stableKeys
+        const composite = STABLE_KEYS
           .map((k) => k + "{" + (collected[k].hash || collected[k].raw) + "}")
           .join("||");
         const fp = hash64(composite);
         if (anim) anim.stop(); // stop the pre-compute scramble; settle into real values
         animateHash(document.getElementById("fp"), grouped(fp));
 
-        // entropy: sum contributions, discount for correlation between signals.
-        const rawSum = stableKeys.reduce(
+        // entropy: sum contributions, discount for correlation between
+        // signals. The headline shows the full estimate; only the "1 in N"
+        // odds are capped at ≈ the global browser population — claiming
+        // odds beyond the number of browsers is meaningless.
+        const POP_BITS = 33; // 2^33 ≈ 8.6B ≈ browsers in use
+        const rawSum = STABLE_KEYS.reduce(
           (s, k) => s + (collected[k].bits || 0),
           0,
         );
-        const eff = Math.round(rawSum * 0.62); // correlation discount → honest headline
-        const odds = Math.pow(2, eff);
-        settleNumbers(eff); // jitter the scrambling numbers, then lock to final
+        const eff = Math.round(rawSum * 0.62); // correlation discount
+        const oddsBits = Math.min(POP_BITS, eff);
+        settleNumbers(eff, oddsBits); // jitter the scrambling numbers, then lock to final
 
         // verdict + rarity
         let verdict, color, label;
@@ -2513,25 +2835,74 @@
         const spec = document.getElementById("spectrum");
         spec.innerHTML = "";
         const maxb = Math.max(
-          ...stableKeys.map((k) => collected[k].bits || 0),
+          ...STABLE_KEYS.map((k) => collected[k].bits || 0),
           1,
         );
-        stableKeys.forEach((k) => {
+        STABLE_KEYS.forEach((k) => {
           const b = collected[k].bits || 0;
           if (b <= 0) return;
           const seg = el("div", "seg");
           seg.style.flex = b;
           const t = 0.35 + 0.65 * (b / maxb);
           seg.style.background = "rgba(255,180,58," + t.toFixed(2) + ")";
-          seg.title = k + " · ~" + b + " bits";
+          seg.dataset.name = SIGNAL_NAMES[k] || k;
+          seg.dataset.bits = b;
           spec.appendChild(seg);
         });
+        attachSpectrumPop();
 
         return { fp, eff };
+      }
+
+      const SIGNAL_NAMES = {
+        navigator: "Navigator & UA",
+        screen: "Screen & display",
+        jsengine: "JavaScript engine",
+        canvas: "Canvas fingerprint",
+        webgl: "GPU / WebGL",
+        css: "CSS engine support",
+        audio: "Audio DSP fingerprint",
+        math: "Floating-point math",
+        fonts: "Installed fonts",
+        speech: "Speech-synthesis voices",
+        locale: "Locale & time",
+        media: "Media devices",
+        capabilities: "Capability matrix",
+        misc: "Network & preferences",
+      };
+
+      /* styled hover popover for the spectrum segments (same look as the
+     info/diff popovers, instead of the browser's plain title tooltip) */
+      function attachSpectrumPop() {
+        const spectrum = document.querySelector(".spectrum");
+        const track = document.getElementById("spectrum");
+        const pop = el("div", "spec-pop");
+        spectrum.appendChild(pop);
+        track.addEventListener("mouseover", (e) => {
+          const seg = e.target.closest(".seg");
+          if (!seg || !seg.dataset.name) return;
+          pop.innerHTML =
+            "<b>" +
+            esc(seg.dataset.name) +
+            "</b> · ~" +
+            esc(seg.dataset.bits) +
+            " bits";
+          pop.classList.add("show");
+          const segRect = seg.getBoundingClientRect();
+          const wrapRect = spectrum.getBoundingClientRect();
+          const half = pop.offsetWidth / 2;
+          const x = segRect.left - wrapRect.left + segRect.width / 2;
+          pop.style.left =
+            Math.max(half, Math.min(wrapRect.width - half, x)) + "px";
+        });
+        track.addEventListener("mouseleave", () =>
+          pop.classList.remove("show"),
+        );
       }
       function fmtBig(n) {
         if (n < 1000) return Math.round(n).toString();
         const units = [
+          ["T", 1e12],
           ["B", 1e9],
           ["M", 1e6],
           ["K", 1e3],
@@ -2557,7 +2928,6 @@
         const idxs = [];
         for (let i = 0; i < target.length; i++)
           if (target[i] !== " ") idxs.push(i);
-        elm.classList.remove("computing");
         let settled = 0,
           frame = 0;
         const iv = setInterval(() => {
@@ -2629,28 +2999,28 @@
       }
 
       /* ---- Settle the scrambling hero numbers into their final values -- */
-      function settleNumbers(eff) {
+      function settleNumbers(shown, oddsBits) {
         const bitsEl = document.getElementById("bits");
         const oddsEl = document.getElementById("odds");
         const totEl = document.getElementById("spectrum-total");
         const finalOdds =
           "roughly <b>1 in " +
-          fmtBig(Math.pow(2, eff)) +
+          fmtBig(Math.pow(2, oddsBits)) +
           "</b> browsers share this profile";
         let frame = 0;
         const iv = setInterval(() => {
           frame++;
           if (frame < 11) {
-            const j = Math.max(1, eff + ((Math.random() * 7) | 0) - 3); // brief jitter near the target
+            const j = Math.max(1, shown + ((Math.random() * 7) | 0) - 3); // brief jitter near the target
             bitsEl.textContent = j;
             totEl.textContent = "≈ " + j + " bits";
             oddsEl.innerHTML =
               "roughly <b>1 in " +
-              fmtBig(Math.pow(2, j)) +
+              fmtBig(Math.pow(2, Math.min(j, oddsBits))) +
               "</b> browsers share this profile";
           } else {
-            bitsEl.textContent = eff;
-            totEl.textContent = "≈ " + eff + " bits";
+            bitsEl.textContent = shown;
+            totEl.textContent = "≈ " + shown + " bits";
             oddsEl.innerHTML = finalOdds;
             clearInterval(iv);
           }
@@ -2658,158 +3028,238 @@
       }
 
       /* ══════════════ BOOT ══════════════ */
+      // one failed collector must degrade to an "unavailable" panel,
+      // never brick the whole page mid-scramble
+      function fallbackSignal(key, e) {
+        return {
+          rows: [
+            [
+              "Status",
+              "collector failed: " + ((e && e.message) || e),
+              "off",
+            ],
+          ],
+          raw: "error:" + key,
+          bits: 0,
+          full: { error: String((e && e.message) || e) },
+        };
+      }
+      async function collectSafe(key, fn) {
+        try {
+          return await fn();
+        } catch (e) {
+          return fallbackSignal(key, e);
+        }
+      }
+
       (async function boot() {
         const heroAnim = heroScrambler(); // start the live scramble immediately
-        const c = {};
-        c.screen = collectScreen();
-        c.locale = collectLocale();
-        c.canvas = collectCanvas();
-        c.webgl = collectWebGL();
-        c.css = collectCSS();
-        c.fonts = collectFonts();
-        c.math = collectMath();
-        c.jsengine = collectJSEngine();
-        c.capabilities = collectCapabilities();
-        // async collectors
-        c.navigator = await collectNavigator();
-        c.audio = await collectAudio();
-        c.media = await collectMedia();
-        c.misc = await collectMisc();
-        c.speech = buildSpeech(await collectVoices());
-        c.webrtc = await collectWebRTC();
-        // WebRTC is a small, network-dependent signal — fold it into the network panel
-        // rather than giving it a sparse card of its own (still its own entry in the JSON report).
-        if (c.webrtc && c.webrtc.rows && c.webrtc.rows.length) {
-          c.misc.rows.push(...c.webrtc.rows);
-          c.misc.full.webrtc = c.webrtc.full;
+        try {
+          const c = {};
+          c.screen = await collectSafe("screen", collectScreen);
+          c.locale = await collectSafe("locale", collectLocale);
+          c.canvas = await collectSafe("canvas", collectCanvas);
+          c.webgl = await collectSafe("webgl", collectWebGL);
+          c.css = await collectSafe("css", collectCSS);
+          c.fonts = await collectSafe("fonts", collectFonts);
+          c.math = await collectSafe("math", collectMath);
+          c.jsengine = await collectSafe("jsengine", collectJSEngine);
+          c.capabilities = await collectSafe(
+            "capabilities",
+            collectCapabilities,
+          );
+          c.navigator = await collectSafe("navigator", collectNavigator);
+          c.audio = await collectSafe("audio", collectAudio);
+          c.media = await collectSafe("media", collectMedia);
+          c.misc = await collectSafe("misc", collectMisc);
+          c.speech = await collectSafe("speech", async () =>
+            buildSpeech(await collectVoices()),
+          );
+          c.webrtc = await collectSafe("webrtc", collectWebRTC);
+          // WebRTC is a small, network-dependent signal — fold it into the network panel
+          // rather than giving it a sparse card of its own (still its own entry in the JSON report).
+          if (c.webrtc && c.webrtc.rows && c.webrtc.rows.length) {
+            c.misc.rows.push(...c.webrtc.rows);
+            c.misc.full.webrtc = c.webrtc.full;
+          }
+          let behav;
+          try {
+            behav = behavioralPanel();
+          } catch (e) {
+            behav = Object.assign(fallbackSignal("behavioral", e), {
+              dynamic: true,
+            });
+          }
+
+          // Diff against the last test's baseline (before panels are built,
+          // so makePanel can decorate changed rows)
+          const DIFF_KEY = "fpt:baseline";
+          const DIFF_ON_KEY = "fpt:diff-on";
+          let baseline = null;
+          try {
+            baseline = JSON.parse(localStorage.getItem(DIFF_KEY));
+          } catch (e) {}
+          if (baseline && baseline.signals) {
+            Object.keys(baseline.signals).forEach((k) => {
+              if (!c[k]) return;
+              const old = baseline.signals[k];
+              const rowChanges = {};
+              (c[k].rows || []).forEach(([rk, rv]) => {
+                if (
+                  old.rows &&
+                  old.rows[rk] !== undefined &&
+                  old.rows[rk] !== rv
+                )
+                  rowChanges[rk] = old.rows[rk];
+              });
+              DIFF[k] = {
+                digestChanged: old.digest !== hash64(c[k].raw || ""),
+                rowChanges,
+              };
+            });
+          }
+
+          // Build sections
+          addSection("01", "Identity & hardware", [
+            { title: "Navigator & UA", key: "navigator", data: c.navigator },
+            { title: "Screen & display", key: "screen", data: c.screen },
+          ]);
+          addSection("02", "Rendering & engines", [
+            { title: "Canvas fingerprint", key: "canvas", data: c.canvas },
+            { title: "GPU / WebGL", key: "webgl", data: c.webgl },
+            { title: "CSS engine support", key: "css", data: c.css },
+            { title: "JavaScript engine", key: "jsengine", data: c.jsengine },
+          ]);
+          addSection("03", "Signal processing", [
+            { title: "Audio DSP fingerprint", key: "audio", data: c.audio },
+            { title: "Floating-point math", key: "math", data: c.math },
+            { title: "Installed fonts", key: "fonts", data: c.fonts },
+            { title: "Speech-synthesis voices", key: "speech", data: c.speech },
+          ]);
+          addSection("04", "Environment & locale", [
+            { title: "Locale & time", key: "locale", data: c.locale },
+            { title: "Media devices", key: "media", data: c.media },
+            { title: "Network & preferences", key: "misc", data: c.misc },
+            {
+              title: "Capability matrix",
+              key: "capabilities",
+              data: c.capabilities,
+            },
+          ]);
+          addSection("05", "Behavioral (live)", [
+            {
+              title: "Pointer & keyboard cadence",
+              key: "behavioral",
+              data: behav,
+            },
+          ]);
+
+          const hero = renderHero(c, heroAnim);
+
+          // Diff toggle — absent entirely on first visit
+          if (baseline && baseline.generatedAt) {
+            const check = document.getElementById("diff-check");
+            const status = document.getElementById("diff-status");
+            document.getElementById("diff-wrap").hidden = false;
+            document.getElementById("diff-when").textContent = relTime(
+              baseline.generatedAt,
+            );
+            const total = STABLE_KEYS.length;
+            const matched = STABLE_KEYS.filter(
+              (k) => DIFF[k] && !DIFF[k].digestChanged,
+            ).length;
+            const rowsDrifted = Object.values(DIFF).some(
+              (d) => Object.keys(d.rowChanges).length > 0,
+            );
+            const setState = (on) => {
+              document.body.classList.toggle("diff-on", on);
+              if (!on) {
+                status.textContent = "";
+                closeInfoPops();
+                return;
+              }
+              if (matched === total && !rowsDrifted)
+                status.textContent = "no changes since last test";
+              else if (matched === total)
+                status.textContent =
+                  "all " +
+                  total +
+                  " signals match — only display-only values drifted";
+              else
+                status.textContent =
+                  matched + " of " + total + " signals match your last test";
+            };
+            check.addEventListener("change", () => {
+              setState(check.checked);
+              try {
+                localStorage.setItem(DIFF_ON_KEY, check.checked ? "1" : "0");
+              } catch (e) {}
+            });
+            try {
+              if (localStorage.getItem(DIFF_ON_KEY) === "1")
+                check.checked = true;
+            } catch (e) {}
+            setState(check.checked);
+          }
+
+          // Save this test as the new baseline (localStorage only)
+          try {
+            const sig = {};
+            STABLE_KEYS.forEach((k) => {
+              const rows = {};
+              (c[k].rows || []).forEach(([rk, rv]) => (rows[rk] = rv));
+              sig[k] = { digest: hash64(c[k].raw || ""), rows };
+            });
+            localStorage.setItem(
+              DIFF_KEY,
+              JSON.stringify({
+                generatedAt: new Date().toISOString(),
+                fingerprint: hero.fp,
+                signals: sig,
+              }),
+            );
+          } catch (e) {}
+
+          // Build the JSON report
+          Object.keys(c).forEach((k) => {
+            REPORT.signals[k] = {
+              bits: c[k].bits,
+              value: c[k].full !== undefined ? c[k].full : c[k].raw,
+            };
+          });
+          REPORT.fingerprint = hero.fp;
+          REPORT.estimatedEntropyBits = hero.eff;
+          REPORT.generatedAt = new Date().toISOString();
+
+          document.getElementById("copy-fp").addEventListener("click", (e) => {
+            copyText(grouped(hero.fp), () => {
+              e.target.classList.add("copied");
+              e.target.textContent = "✓ copied";
+              setTimeout(() => {
+                e.target.classList.remove("copied");
+                e.target.textContent = "⧉ Copy fingerprint";
+              }, 1400);
+            });
+          });
+          document
+            .getElementById("copy-json")
+            .addEventListener("click", (e) => {
+              copyText(JSON.stringify(REPORT, null, 2), () => {
+                e.target.classList.add("copied");
+                e.target.textContent = "✓ copied";
+                setTimeout(() => {
+                  e.target.classList.remove("copied");
+                  e.target.textContent = "↧ Copy full report (JSON)";
+                }, 1400);
+              });
+            });
+        } catch (e) {
+          heroAnim.stop();
+          document.getElementById("fp").textContent = "— unavailable —";
+          document.getElementById("verdict").textContent =
+            "Something went wrong while computing the fingerprint: " +
+            ((e && e.message) || e);
         }
-        const behav = behavioralPanel();
-
-        // Build sections
-        addSection("01", "Identity & hardware", [
-          {
-            tag: "NAVIGATOR",
-            title: "Navigator & UA",
-            key: "navigator",
-            data: c.navigator,
-          },
-          {
-            tag: "DISPLAY",
-            title: "Screen & display",
-            key: "screen",
-            data: c.screen,
-          },
-          {
-            tag: "JS ENGINE",
-            title: "JavaScript engine",
-            key: "jsengine",
-            data: c.jsengine,
-          },
-        ]);
-        addSection("02", "Rendering stack", [
-          {
-            tag: "CANVAS 2D",
-            title: "Canvas fingerprint",
-            key: "canvas",
-            data: c.canvas,
-          },
-          { tag: "WEBGL", title: "GPU / WebGL", key: "webgl", data: c.webgl },
-          { tag: "CSS", title: "CSS engine support", key: "css", data: c.css },
-        ]);
-        addSection("03", "Signal processing", [
-          {
-            tag: "WEBAUDIO",
-            title: "Audio DSP fingerprint",
-            key: "audio",
-            data: c.audio,
-          },
-          {
-            tag: "MATH",
-            title: "Floating-point math",
-            key: "math",
-            data: c.math,
-          },
-          {
-            tag: "FONTS",
-            title: "Installed fonts",
-            key: "fonts",
-            data: c.fonts,
-          },
-          {
-            tag: "SPEECH",
-            title: "Speech-synthesis voices",
-            key: "speech",
-            data: c.speech,
-          },
-        ]);
-        addSection("04", "Environment & locale", [
-          {
-            tag: "INTL",
-            title: "Locale & time",
-            key: "locale",
-            data: c.locale,
-          },
-          {
-            tag: "DEVICES",
-            title: "Media devices",
-            key: "media",
-            data: c.media,
-          },
-          {
-            tag: "CSS/NET",
-            title: "Network & preferences",
-            key: "misc",
-            data: c.misc,
-          },
-          {
-            tag: "PLATFORM",
-            title: "Capability matrix",
-            key: "capabilities",
-            data: c.capabilities,
-          },
-        ]);
-        addSection("05", "Behavioral (live)", [
-          {
-            tag: "TIMING",
-            title: "Pointer & keyboard cadence",
-            key: "behavioral",
-            data: behav,
-          },
-        ]);
-
-        const hero = renderHero(c, heroAnim);
-
-        // Build the JSON report
-        Object.keys(c).forEach((k) => {
-          REPORT.signals[k] = {
-            bits: c[k].bits,
-            value: c[k].full !== undefined ? c[k].full : c[k].raw,
-          };
-        });
-        REPORT.fingerprint = hero.fp;
-        REPORT.estimatedEntropyBits = hero.eff;
-        REPORT.generatedAt = new Date().toISOString();
-
-        document.getElementById("copy-fp").addEventListener("click", (e) => {
-          copyText(grouped(hero.fp), () => {
-            e.target.classList.add("copied");
-            e.target.textContent = "✓ copied";
-            setTimeout(() => {
-              e.target.classList.remove("copied");
-              e.target.textContent = "⧉ Copy fingerprint";
-            }, 1400);
-          });
-        });
-        document.getElementById("copy-json").addEventListener("click", (e) => {
-          copyText(JSON.stringify(REPORT, null, 2), () => {
-            e.target.classList.add("copied");
-            e.target.textContent = "✓ copied";
-            setTimeout(() => {
-              e.target.classList.remove("copied");
-              e.target.textContent = "↧ Copy full report (JSON)";
-            }, 1400);
-          });
-        });
       })();
     </script>
   </body>
