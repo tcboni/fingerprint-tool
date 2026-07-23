@@ -394,6 +394,29 @@
         border-color: var(--cyan);
         color: var(--cyan);
       }
+      button.btn .ic {
+        flex: none;
+      }
+      summary {
+        list-style: none;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary .chev {
+        vertical-align: -1px;
+        transition: transform 0.15s;
+      }
+      details[open] summary .chev {
+        transform: rotate(90deg);
+      }
+      button.btn .ic-check,
+      button.btn.copied .ic-def {
+        display: none;
+      }
+      button.btn.copied .ic-check {
+        display: inline-block;
+      }
 
       /* ── Section rhythm ────────────────────────────────────── */
       .section-head {
@@ -951,9 +974,70 @@
         </div>
 
         <div class="hero-actions">
-          <button class="btn" id="copy-fp">⧉ Copy fingerprint</button>
+          <button class="btn" id="copy-fp">
+            <svg
+              class="ic ic-def"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <svg
+              class="ic ic-check"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Copy fingerprint</span>
+          </button>
           <button class="btn primary" id="copy-json">
-            ↧ Copy full report (JSON)
+            <svg
+              class="ic ic-def"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <svg
+              class="ic ic-check"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Copy full report (JSON)</span>
           </button>
           <div class="diff-wrap" id="diff-wrap" hidden>
             <label class="diff-toggle" id="diff-toggle">
@@ -1446,8 +1530,8 @@
             const sm = el("summary");
             sm.style.cssText =
               "font-family:var(--mono);font-size:11px;color:var(--ink-3);cursor:pointer";
-            sm.textContent =
-              "▸ " +
+            sm.innerHTML =
+              '<svg class="chev" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg> ' +
               exts.length +
               " WebGL extensions + render hash " +
               grouped(renderHash).slice(0, 14) +
@@ -3218,27 +3302,28 @@
           REPORT.estimatedEntropyBits = hero.eff;
           REPORT.generatedAt = new Date().toISOString();
 
+          const flashCopied = (btn) => {
+            const lbl = btn.querySelector("span");
+            if (!btn._lbl) btn._lbl = lbl.textContent;
+            btn.classList.add("copied");
+            lbl.textContent = "copied";
+            clearTimeout(btn._t);
+            btn._t = setTimeout(() => {
+              btn.classList.remove("copied");
+              lbl.textContent = btn._lbl;
+            }, 1400);
+          };
           document.getElementById("copy-fp").addEventListener("click", (e) => {
-            copyText(grouped(hero.fp), () => {
-              e.target.classList.add("copied");
-              e.target.textContent = "✓ copied";
-              setTimeout(() => {
-                e.target.classList.remove("copied");
-                e.target.textContent = "⧉ Copy fingerprint";
-              }, 1400);
-            });
+            const btn = e.currentTarget;
+            copyText(grouped(hero.fp), () => flashCopied(btn));
           });
           document
             .getElementById("copy-json")
             .addEventListener("click", (e) => {
-              copyText(JSON.stringify(REPORT, null, 2), () => {
-                e.target.classList.add("copied");
-                e.target.textContent = "✓ copied";
-                setTimeout(() => {
-                  e.target.classList.remove("copied");
-                  e.target.textContent = "↧ Copy full report (JSON)";
-                }, 1400);
-              });
+              const btn = e.currentTarget;
+              copyText(JSON.stringify(REPORT, null, 2), () =>
+                flashCopied(btn),
+              );
             });
         } catch (e) {
           heroAnim.stop();
