@@ -1419,6 +1419,8 @@
           raw,
           bits: 8,
           hash: h,
+          excluded: true,
+          note: "private modes & Brave randomize its pixels per session",
           render: (body) => {
             const c = cv;
             c.className = "artifact";
@@ -1517,12 +1519,15 @@
           gl.readPixels(0, 0, 64, 32, gl.RGBA, gl.UNSIGNED_BYTE, px);
           renderHash = hash64(px.join(",") + "|" + exts.join(","));
         } catch (e) {}
-        const raw = parts.join("|") + "|" + renderHash;
+        // hash only the stable device surface — the rendered pixels drift
+        // under Brave/Safari/RFP randomization, so they stay display-only
+        const stableRaw = parts.join("|") + "|" + exts.join(",");
+        const raw = stableRaw + "|" + renderHash;
         return {
           rows,
           raw,
-          bits: 10,
-          hash: renderHash,
+          bits: 8,
+          hash: hash64(stableRaw),
           exts,
           render: (body) => {
             const d = el("details");
@@ -1535,7 +1540,7 @@
               exts.length +
               " WebGL extensions + render hash " +
               grouped(renderHash).slice(0, 14) +
-              "…";
+              "… · not hashed";
             d.appendChild(sm);
             const box = el("div", "valblock");
             box.style.marginTop = "8px";
@@ -1589,6 +1594,8 @@
             raw: slice,
             bits: 5,
             hash: h,
+            excluded: true,
+            note: "privacy modes inject noise into the output samples",
             full: { hash: h, metric: sum },
           };
         } catch (e) {
@@ -1749,6 +1756,8 @@
               "vi" +
               count("videoinput"),
             bits: 2,
+            excluded: true,
+            note: "changes whenever devices are plugged or unplugged",
             full: {
               audioinput: count("audioinput"),
               audiooutput: count("audiooutput"),
@@ -2370,6 +2379,8 @@
           ],
           raw,
           bits: Math.min(6, 2 + Math.round(names.length / 40)),
+          excluded: true,
+          note: "the voice list is load-order unstable between visits",
           render: (body) => {
             const c = el("div", "chips");
             c.style.marginTop = "10px";
@@ -2437,7 +2448,7 @@
               raw: real.join(","),
               bits: real.length ? 4 : 1,
               excluded: true,
-              note: "network-dependent — shown but kept out of the fingerprint hash",
+              note: "network-dependent, changes between visits",
               full: { available: true, localIPs: real, mdnsMasked: masked },
             });
           }
@@ -2559,13 +2570,13 @@
         },
         canvas: {
           what: "A hidden 2D drawing rasterized to pixels, then hashed. You can see the exact image below.",
-          why: "The same drawing code produces subtly different pixels on every GPU + driver + OS font renderer combination — a classic high-signal probe.",
+          why: "The same drawing code produces subtly different pixels on every GPU + driver + OS font renderer combination — a classic high-signal probe. Privacy browsers randomize the pixels per session, so it is shown here but kept out of the hash.",
           ent: "~8 bits",
         },
         webgl: {
           what: "Your GPU’s unmasked vendor/renderer string, its limits, extensions and a rendered-pixel hash.",
-          why: "The GPU model string alone is highly distinguishing, and the render hash captures driver-level rasterization quirks.",
-          ent: "~10 bits",
+          why: "The GPU model string alone is highly distinguishing. Only the stable device strings, limits and extensions are hashed — the render hash is displayed but excluded, because privacy browsers randomize rendered pixels.",
+          ent: "~8 bits",
         },
         css: {
           what: "~130 probes of CSS properties, value functions, selectors, at-rules and media features the engine understands (via CSS.supports, CSSOM interfaces and matchMedia).",
@@ -2574,7 +2585,7 @@
         },
         audio: {
           what: "An oscillator run through a compressor in an offline audio graph, output samples hashed.",
-          why: "Floating-point audio DSP differs microscopically across hardware and OS audio stacks — stable and silent.",
+          why: "Floating-point audio DSP differs microscopically across hardware and OS audio stacks — but privacy modes inject noise into it, so it is shown here and kept out of the hash.",
           ent: "~5 bits",
         },
         fonts: {
@@ -2594,7 +2605,7 @@
         },
         speech: {
           what: "The list of text-to-speech voices your browser exposes.",
-          why: "Installed voice sets track your OS, language packs and browser build closely — a surprisingly strong signal.",
+          why: "Installed voice sets track your OS, language packs and browser build closely — but the list loads asynchronously and can differ between visits, so it is kept out of the hash.",
           ent: "up to 6 bits — scales with the voice count",
         },
         webrtc: {
@@ -2609,7 +2620,7 @@
         },
         media: {
           what: "How many microphones, cameras and speakers exist (labels stay hidden without permission).",
-          why: "The count and configuration of A/V devices adds a couple of bits; labels would add far more if you grant access.",
+          why: "The count and configuration of A/V devices adds a couple of bits; labels would add far more if you grant access. It changes whenever devices are plugged or unplugged, so it is kept out of the hash.",
           ent: "~2 bits",
         },
         capabilities: {
@@ -2642,27 +2653,27 @@
         ],
         canvas: [
           "drifts",
-          "Stable in most browsers, but Brave, Safari private mode and Firefox resistFingerprinting re-randomize it per session or per load.",
+          "Brave, Safari private mode and Firefox resistFingerprinting re-randomize it per session or per load — excluded from the fingerprint hash.",
         ],
         webgl: [
-          "drifts",
-          "Stable in most browsers; anti-fingerprinting modes randomize the render hash.",
+          "stable",
+          "The hashed GPU strings, limits and extensions change only with hardware or driver updates. The drift-prone render hash is shown but not hashed.",
         ],
         css: ["stable", "Changes only when the browser updates."],
         audio: [
           "drifts",
-          "Stable in most browsers; Safari private mode and Brave inject noise.",
+          "Safari private mode and Brave inject noise — excluded from the fingerprint hash.",
         ],
         math: ["stable", "Fixed by the CPU and math library."],
         fonts: ["stable", "Changes only when fonts are installed or removed."],
         speech: [
           "drifts",
-          "The voice list loads asynchronously and follows OS language packs.",
+          "The voice list loads asynchronously and follows OS language packs — excluded from the fingerprint hash.",
         ],
         locale: ["stable", "Changes only with travel or language settings."],
         media: [
           "drifts",
-          "Changes when you plug or unplug cameras, mics and headphones.",
+          "Changes when you plug or unplug cameras, mics and headphones — excluded from the fingerprint hash.",
         ],
         capabilities: ["stable", "Changes only when the browser updates."],
         misc: [
@@ -2716,9 +2727,12 @@
           (diff.digestChanged || Object.keys(diff.rowChanges).length)
         ) {
           const dot = el("span", "chgdot");
-          dot.title = diff.digestChanged
-            ? "Changed since last test — affects the fingerprint"
-            : "Changed since last test — display-only values";
+          const hashed =
+            STABLE_KEYS.includes(cfg.key) && !cfg.data.excluded;
+          dot.title =
+            hashed && diff.hashChanged
+              ? "Changed since last test — affects the fingerprint"
+              : "Changed since last test — display-only; the fingerprint is unaffected";
           head.appendChild(dot);
         }
         const stab = STABILITY[cfg.key];
@@ -2742,7 +2756,12 @@
             esc(tip.why) +
             '<span class="ent">Typical entropy: ' +
             tip.ent +
-            "</span>";
+            "</span>" +
+            (cfg.data.excluded
+              ? '<span class="ent">Excluded from the hash — ' +
+                esc(cfg.data.note || "unstable between visits") +
+                "</span>"
+              : "");
           info.appendChild(pop);
           info.addEventListener("click", (ev) => {
             ev.stopPropagation();
@@ -2796,13 +2815,6 @@
           m.innerHTML =
             '<div class="bits note" style="color:var(--ink-3)">dynamic signal — not part of the static fingerprint hash</div>';
           p.appendChild(m);
-        } else if (data.excluded) {
-          const m = el("div", "meter");
-          m.innerHTML =
-            '<div class="bits note" style="color:var(--ink-3)">' +
-            (data.note || "shown for reference") +
-            " — excluded from the hash</div>";
-          p.appendChild(m);
         } else {
           const m = el("div", "meter");
           const track = el("div", "track");
@@ -2811,7 +2823,7 @@
           m.appendChild(track);
           const bits = el("div", "bits");
           bits.innerHTML =
-            "<b>" + data.bits.toFixed(1) + "</b> / " + MAXBITS + " bits";
+            "<b>" + data.bits.toFixed(1) + "</b> bits";
           m.appendChild(bits);
           p.appendChild(m);
           requestAnimationFrame(() => {
@@ -2835,20 +2847,19 @@
       }
 
       /* ---- Hero computation ----------------------------------------- */
-      // stable signals only (exclude behavioral + network-dependent webrtc)
+      // hashed signals: genuinely stable ones only. Kept out: behavioral
+      // (live), webrtc (network-dependent), and the drift-prone probes —
+      // canvas, audio, speech, media — which privacy browsers randomize or
+      // which churn between loads. They are still collected and displayed.
       const STABLE_KEYS = [
-        "canvas",
         "webgl",
         "css",
-        "audio",
         "fonts",
         "math",
         "jsengine",
         "navigator",
         "screen",
         "locale",
-        "speech",
-        "media",
         "capabilities",
         "misc",
       ];
@@ -2861,17 +2872,14 @@
         animateHash(document.getElementById("fp"), grouped(fp));
 
         // entropy: sum contributions, discount for correlation between
-        // signals. The headline shows the full estimate; only the "1 in N"
-        // odds are capped at ≈ the global browser population — claiming
-        // odds beyond the number of browsers is meaningless.
-        const POP_BITS = 33; // 2^33 ≈ 8.6B ≈ browsers in use
+        // signals. The "1 in N" line is a match-probability rate, so it is
+        // shown uncapped even if it exceeds the browser population.
         const rawSum = STABLE_KEYS.reduce(
           (s, k) => s + (collected[k].bits || 0),
           0,
         );
         const eff = Math.round(rawSum * 0.62); // correlation discount
-        const oddsBits = Math.min(POP_BITS, eff);
-        settleNumbers(eff, oddsBits); // jitter the scrambling numbers, then lock to final
+        settleNumbers(eff); // jitter the scrambling numbers, then lock to final
 
         // verdict + rarity
         let verdict, color, label;
@@ -3074,14 +3082,14 @@
       }
 
       /* ---- Settle the scrambling hero numbers into their final values -- */
-      function settleNumbers(shown, oddsBits) {
+      function settleNumbers(shown) {
         const bitsEl = document.getElementById("bits");
         const oddsEl = document.getElementById("odds");
         const totEl = document.getElementById("spectrum-total");
         const finalOdds =
-          "roughly <b>1 in " +
-          fmtBig(Math.pow(2, oddsBits)) +
-          "</b> browsers share this profile";
+          "odds of <b>1 in " +
+          fmtBig(Math.pow(2, shown)) +
+          "</b> that any other browser matches this profile";
         let frame = 0;
         const iv = setInterval(() => {
           frame++;
@@ -3090,9 +3098,9 @@
             bitsEl.textContent = j;
             totEl.textContent = "≈ " + j + " bits";
             oddsEl.innerHTML =
-              "roughly <b>1 in " +
-              fmtBig(Math.pow(2, Math.min(j, oddsBits))) +
-              "</b> browsers share this profile";
+              "odds of <b>1 in " +
+              fmtBig(Math.pow(2, j)) +
+              "</b> that any other browser matches this profile";
           } else {
             bitsEl.textContent = shown;
             totEl.textContent = "≈ " + shown + " bits";
@@ -3183,8 +3191,15 @@
                 )
                   rowChanges[rk] = old.rows[rk];
               });
+              const digestChanged = old.digest !== hash64(c[k].raw || "");
               DIFF[k] = {
-                digestChanged: old.digest !== hash64(c[k].raw || ""),
+                digestChanged,
+                // older baselines lack hashDigest — fall back to the raw digest
+                hashChanged:
+                  old.hashDigest !== undefined
+                    ? old.hashDigest !==
+                      hash64(String(c[k].hash || c[k].raw || ""))
+                    : digestChanged,
                 rowChanges,
               };
             });
@@ -3237,7 +3252,7 @@
             );
             const total = STABLE_KEYS.length;
             const matched = STABLE_KEYS.filter(
-              (k) => DIFF[k] && !DIFF[k].digestChanged,
+              (k) => DIFF[k] && !DIFF[k].hashChanged,
             ).length;
             const rowsDrifted = Object.values(DIFF).some(
               (d) => Object.keys(d.rowChanges).length > 0,
@@ -3275,11 +3290,18 @@
 
           // Save this test as the new baseline (localStorage only)
           try {
+            // save every collected signal (hashed or not) so the diff can
+            // still flag excluded panels; hashDigest tracks only the part
+            // that feeds the fingerprint
             const sig = {};
-            STABLE_KEYS.forEach((k) => {
+            Object.keys(c).forEach((k) => {
               const rows = {};
               (c[k].rows || []).forEach(([rk, rv]) => (rows[rk] = rv));
-              sig[k] = { digest: hash64(c[k].raw || ""), rows };
+              sig[k] = {
+                digest: hash64(c[k].raw || ""),
+                hashDigest: hash64(String(c[k].hash || c[k].raw || "")),
+                rows,
+              };
             });
             localStorage.setItem(
               DIFF_KEY,
