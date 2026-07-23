@@ -671,9 +671,6 @@
       .kv .row .v {
         color: var(--ink);
       }
-      .kv .v.hl {
-        color: var(--amber);
-      }
       .kv .v.on {
         color: var(--cyan);
       }
@@ -1117,7 +1114,7 @@
           const d = n.userAgentData;
           const uad =
             (d.platform || "?") + (d.mobile ? " · mobile" : " · desktop");
-          add("UA-CH platform", uad, "hl");
+          add("UA-CH platform", uad);
           if (d.brands)
             add(
               "UA-CH brands",
@@ -1139,7 +1136,6 @@
                   "CH architecture",
                   he.architecture +
                     (he.bitness ? " · " + he.bitness + "-bit" : ""),
-                  "hl",
                 );
               if (he.model) add("CH device model", he.model);
               if (he.platformVersion) add("CH OS version", he.platformVersion);
@@ -1167,7 +1163,7 @@
           if (hashIt) parts.push(k + "=" + v);
         };
         const res = s.width + " × " + s.height;
-        add("Resolution", res, "hl");
+        add("Resolution", res);
         add("Available", s.availWidth + " × " + s.availHeight);
         add("Color depth", s.colorDepth + "-bit");
         add("Pixel ratio", window.devicePixelRatio);
@@ -1240,7 +1236,7 @@
           parts.push(k + "=" + v);
         };
         const dtf = Intl.DateTimeFormat().resolvedOptions();
-        add("Time zone", dtf.timeZone, "hl");
+        add("Time zone", dtf.timeZone);
         add(
           "UTC offset",
           "UTC" +
@@ -1331,7 +1327,7 @@
         }
         const h = hash64(raw);
         return {
-          rows: [["Pixel hash", grouped(h), "hl"]],
+          rows: [["Pixel hash", grouped(h)]],
           raw,
           bits: 8,
           hash: h,
@@ -1377,8 +1373,8 @@
           vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
           renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
         }
-        add("GPU vendor", vendor, "hl");
-        add("GPU renderer", renderer, "hl");
+        add("GPU vendor", vendor);
+        add("GPU renderer", renderer);
         add("GL version", gl.getParameter(gl.VERSION));
         add("Shading lang", gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
         add("Max texture", gl.getParameter(gl.MAX_TEXTURE_SIZE) + "px");
@@ -1497,7 +1493,7 @@
             .map((x) => x.toFixed(6))
             .join(",");
           const h = hash64(slice);
-          rows.push(["DSP fingerprint", grouped(h).slice(0, 24) + "…", "hl"]);
+          rows.push(["DSP fingerprint", grouped(h).slice(0, 24) + "…"]);
           rows.push(["Sample metric", sum.toFixed(8)]);
           rows.push(["Context", "44.1 kHz offline · compressor graph"]);
           return {
@@ -1614,7 +1610,6 @@
             [
               "Detected",
               present.length + " of " + test.length + " probed",
-              "hl",
             ],
           ],
           raw,
@@ -1794,7 +1789,6 @@
         add(
           "Color scheme",
           mq("(prefers-color-scheme: dark)") ? "dark" : "light",
-          "hl",
         );
         add(
           "Reduced motion",
@@ -1910,7 +1904,7 @@
         const parts = Object.entries(ops).map(([k, v]) => k + "=" + v);
         const h = hash64(parts.join("|"));
         const rows = [
-          ["FP hash", grouped(h).slice(0, 24) + "…", "hl"],
+          ["FP hash", grouped(h).slice(0, 24) + "…"],
           ["sinh(2)", ops["sinh(2)"].toString().slice(0, 18)],
           ["acosh(1e308)", ops["acosh(1e308)"].toString().slice(0, 18)],
         ];
@@ -1966,7 +1960,6 @@
           rows.push([
             "Timer resolution",
             (res < 0.001 ? "<0.001" : res.toFixed(4)) + " ms",
-            "hl",
           ]);
           parts.push("Timer resolution=" + bucket);
         } catch (e) {
@@ -1998,7 +1991,7 @@
           stackHead = ((e.stack || "").split("\n")[0] || "").slice(0, 40);
         }
         const h = hash64(parts.join("|") + "|" + stackHead);
-        rows.unshift(["Engine hash", grouped(h).slice(0, 24) + "…", "hl"]);
+        rows.unshift(["Engine hash", grouped(h).slice(0, 24) + "…"]);
         return {
           rows,
           raw: parts.join("|") + "|" + stackHead,
@@ -2208,7 +2201,7 @@
         const h = hash64(bitrec.join(";"));
         return {
           rows: [
-            ["Support hash", grouped(h).slice(0, 24) + "…", "hl"],
+            ["Support hash", grouped(h).slice(0, 24) + "…"],
             ["Supported", supported.length + " of " + total + " probed"],
           ],
           raw: bitrec.join(";"),
@@ -2287,7 +2280,7 @@
           .join(",");
         return {
           rows: [
-            ["Voices", voices.length + " installed", "hl"],
+            ["Voices", voices.length + " installed"],
             ["Default", (voices.find((v) => v.default) || voices[0]).name],
           ],
           raw,
@@ -2338,7 +2331,7 @@
             } catch (e) {}
             const real = [...ips];
             const rows = [];
-            if (real.length) rows.push(["Local IPs", real.join(", "), "hl"]);
+            if (real.length) rows.push(["Local IPs", real.join(", ")]);
             if (masked)
               rows.push([
                 "mDNS candidates",
@@ -2352,7 +2345,7 @@
               (real.length
                 ? "real local IP exposed"
                 : "protected by mDNS masking") + " · excluded from hash",
-              real.length ? "hl" : "on",
+              real.length ? null : "on",
             ]);
             resolve({
               rows,
