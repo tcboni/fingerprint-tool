@@ -214,6 +214,9 @@
         min-width: 0;
       }
       @media (max-width: 640px) {
+        .mast .sub {
+          display: none;
+        }
         .hero-grid {
           grid-template-columns: 1fr;
           gap: 20px;
@@ -724,6 +727,9 @@
       }
       .meter .bits b {
         color: var(--amber);
+      }
+      .meter .bits.note {
+        white-space: normal;
       }
 
       canvas.artifact {
@@ -2704,12 +2710,12 @@
         if (data.dynamic) {
           const m = el("div", "meter");
           m.innerHTML =
-            '<div class="bits" style="color:var(--ink-3)">dynamic signal — not part of the static fingerprint hash</div>';
+            '<div class="bits note" style="color:var(--ink-3)">dynamic signal — not part of the static fingerprint hash</div>';
           p.appendChild(m);
         } else if (data.excluded) {
           const m = el("div", "meter");
           m.innerHTML =
-            '<div class="bits" style="color:var(--ink-3)">' +
+            '<div class="bits note" style="color:var(--ink-3)">' +
             (data.note || "shown for reference") +
             " — excluded from the hash</div>";
           p.appendChild(m);
