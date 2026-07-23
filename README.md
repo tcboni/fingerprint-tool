@@ -23,14 +23,21 @@ what each signal is and why it's identifying.
   network hints, CSS media preferences, and WebRTC local-network candidates.
 - **Behavioral (live)** — a running histogram of your pointer/keyboard timing.
 
-Each signal card shows the raw value, an entropy contribution meter, a tooltip
-explaining what it is and why it leaks, and a copy button. The hero readout shows
-your fingerprint hash, an estimated entropy in bits, and a plain-English verdict.
-A "copy full report as JSON" button exports everything.
+Each signal card shows the raw value, a stability tag (stable / drifts / live),
+an entropy contribution meter, and a tooltip explaining what it is and why it
+leaks. The hero readout shows your fingerprint hash, an estimated entropy in
+bits, and a plain-English verdict. A "copy full report as JSON" button exports
+everything.
+
+Volatile values (link speed, RTT, storage quota, window geometry, timer
+jitter) are displayed but excluded from — or bucketed before — the fingerprint
+hash, so the hash stays stable across refreshes.
 
 ## A note on the numbers
 
 Entropy figures are **heuristic estimates** drawn from public research
 (EFF Panopticlick, AmIUnique, Mozilla), discounted for the correlation between
 signals. They approximate how identifying each signal _tends_ to be — not a
-measurement of the global browser population.
+measurement of the global browser population. The headline shows the full
+estimate; only the "1 in N" odds are capped at 2³³ ≈ 8.6 billion (roughly the
+number of browsers in use), so they stay meaningful.
