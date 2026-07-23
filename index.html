@@ -938,9 +938,8 @@
             </div>
             <div class="hero-fine">
               Entropy is a heuristic estimate from public research, not a
-              measurement of the global population. The last-test baseline
-              lives only in your browser's localStorage — itself the kind of
-              local state trackers love.
+              measurement of the global population. The last-test baseline lives
+              only in your browser.
             </div>
           </div>
         </div>
@@ -954,8 +953,7 @@
             <label class="diff-toggle" id="diff-toggle">
               <input type="checkbox" id="diff-check" />
               <span
-                >Highlight changes since last test (<span id="diff-when"
-                  >—</span
+                >Highlight changes since last test (<span id="diff-when">—</span
                 >)</span
               >
             </label>
@@ -1607,10 +1605,7 @@
         const bits = Math.max(1, Math.min(10, Math.round(present.length / 5)));
         return {
           rows: [
-            [
-              "Detected",
-              present.length + " of " + test.length + " probed",
-            ],
+            ["Detected", present.length + " of " + test.length + " probed"],
           ],
           raw,
           bits,
@@ -2574,10 +2569,7 @@
           "drifts",
           "The voice list loads asynchronously and follows OS language packs.",
         ],
-        locale: [
-          "stable",
-          "Changes only with travel or language settings.",
-        ],
+        locale: ["stable", "Changes only with travel or language settings."],
         media: [
           "drifts",
           "Changes when you plug or unplug cameras, mics and headphones.",
@@ -2771,9 +2763,9 @@
         "misc",
       ];
       function renderHero(collected, anim) {
-        const composite = STABLE_KEYS
-          .map((k) => k + "{" + (collected[k].hash || collected[k].raw) + "}")
-          .join("||");
+        const composite = STABLE_KEYS.map(
+          (k) => k + "{" + (collected[k].hash || collected[k].raw) + "}",
+        ).join("||");
         const fp = hash64(composite);
         if (anim) anim.stop(); // stop the pre-compute scramble; settle into real values
         animateHash(document.getElementById("fp"), grouped(fp));
@@ -3026,11 +3018,7 @@
       function fallbackSignal(key, e) {
         return {
           rows: [
-            [
-              "Status",
-              "collector failed: " + ((e && e.message) || e),
-              "off",
-            ],
+            ["Status", "collector failed: " + ((e && e.message) || e), "off"],
           ],
           raw: "error:" + key,
           bits: 0,
