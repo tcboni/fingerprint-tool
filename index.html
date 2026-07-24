@@ -3021,14 +3021,28 @@
         rar.querySelector(".rtxt").textContent = label;
         rar.querySelector(".rtxt").style.color = color;
 
-        // spectrum: one segment per signal, width ∝ bits, amber intensity ∝ bits
+        // spectrum: one segment per signal, width ∝ bits, amber intensity ∝ bits.
+        // Segments follow the panel layout below — NOT STABLE_KEYS, whose
+        // order feeds the composite hash and must not change cosmetically
+        const SPECTRUM_ORDER = [
+          "navigator",
+          "screen",
+          "webgl",
+          "css",
+          "jsengine",
+          "math",
+          "fonts",
+          "locale",
+          "misc",
+          "capabilities",
+        ];
         const spec = document.getElementById("spectrum");
         spec.innerHTML = "";
         const maxb = Math.max(
           ...STABLE_KEYS.map((k) => collected[k].bits || 0),
           1,
         );
-        STABLE_KEYS.forEach((k) => {
+        SPECTRUM_ORDER.forEach((k) => {
           const b = collected[k].bits || 0;
           if (b <= 0) return;
           const seg = el("div", "seg");
