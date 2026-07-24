@@ -703,6 +703,19 @@
       .kv .v.off {
         color: var(--ink-3);
       }
+      .kv .v.warn {
+        color: var(--amber);
+      }
+
+      /* network-side probe rows (inside Network & preferences) */
+      .netkv {
+        margin-top: 10px;
+      }
+      .netkv a {
+        color: var(--cyan);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
       .valblock {
         font-family: var(--mono);
         font-size: 12px;
@@ -1275,6 +1288,29 @@
             ? "extended (multi-monitor)"
             : "single display";
         add("Multi-monitor", mon);
+        // panel and input-hardware media features — stable per device
+        const mq = (q) => window.matchMedia && window.matchMedia(q).matches;
+        const gamut = mq("(color-gamut: p3)")
+          ? "p3"
+          : mq("(color-gamut: rec2020)")
+            ? "rec2020"
+            : "srgb";
+        add("Color gamut", gamut);
+        const hdr = mq("(dynamic-range: high)") ? "high" : "standard";
+        add("HDR", hdr);
+        add(
+          "Update rate",
+          mq("(update: fast)") ? "fast" : mq("(update: slow)") ? "slow" : "none",
+        );
+        add(
+          "Pointer",
+          mq("(pointer: fine)")
+            ? "fine"
+            : mq("(pointer: coarse)")
+              ? "coarse"
+              : "none",
+        );
+        add("Hover", mq("(hover: hover)") ? "hover-capable" : "no-hover");
         // common resolutions carry less identifying signal
         const COMMON = [
           "1920 × 1080",
@@ -1298,6 +1334,7 @@
         ];
         let bits = COMMON.includes(res) ? 3 : 5;
         if (window.devicePixelRatio % 1 !== 0) bits += 1; // scaled displays are rarer
+        if (gamut !== "srgb" || hdr === "high") bits += 1; // wide-gamut / HDR panels are rarer
         return {
           rows,
           raw: parts.join("|"),
@@ -1312,6 +1349,8 @@
             orientation:
               (screen.orientation && screen.orientation.type) || null,
             isExtended: mon,
+            colorGamut: gamut,
+            hdr,
           },
         };
       }
@@ -1907,14 +1946,6 @@
           mq("(inverted-colors: inverted)") ? "inverted" : "none",
         );
         add(
-          "Update rate",
-          mq("(update: fast)")
-            ? "fast"
-            : mq("(update: slow)")
-              ? "slow"
-              : "none",
-        );
-        add(
           "Display mode",
           mq("(display-mode: standalone)")
             ? "standalone"
@@ -1922,25 +1953,7 @@
               ? "fullscreen"
               : "browser",
         );
-        add(
-          "Color gamut",
-          mq("(color-gamut: p3)")
-            ? "p3"
-            : mq("(color-gamut: rec2020)")
-              ? "rec2020"
-              : "srgb",
-        );
         add("Forced colors", mq("(forced-colors: active)") ? "active" : "none");
-        add(
-          "Pointer",
-          mq("(pointer: fine)")
-            ? "fine"
-            : mq("(pointer: coarse)")
-              ? "coarse"
-              : "none",
-        );
-        add("Hover", mq("(hover: hover)") ? "hover-capable" : "no-hover");
-        add("HDR", mq("(dynamic-range: high)") ? "high" : "standard");
         // live network measurements & disk-derived quota jitter between
         // page loads — shown, but kept out of the stable hash
         const conn = navigator.connection || navigator.mozConnection;
@@ -1976,7 +1989,7 @@
         return {
           rows,
           raw: parts.join("|"),
-          bits: 3,
+          bits: 2,
           full: Object.fromEntries(rows.map((r) => [r[0], r[1]])),
         };
       }
@@ -2564,9 +2577,9 @@
           ent: "8–12 bits — more exposed surface earns more",
         },
         screen: {
-          what: "Physical display geometry, color depth and pixel ratio.",
-          why: "Uncommon resolutions and non-integer pixel ratios (scaled displays) are surprisingly rare and stable across sessions. Window geometry and orientation are shown but not hashed — they change too easily.",
-          ent: "3–6 bits — common resolutions score lower",
+          what: "Physical display geometry, color depth, pixel ratio, panel capabilities (gamut, HDR, refresh class) and input hardware (pointer, hover).",
+          why: "Uncommon resolutions, non-integer pixel ratios (scaled displays) and wide-gamut/HDR panels are surprisingly rare and stable across sessions. Window geometry and orientation are shown but not hashed — they change too easily.",
+          ent: "3–7 bits — common hardware scores lower",
         },
         canvas: {
           what: "A hidden 2D drawing rasterized to pixels, then hashed. You can see the exact image below.",
@@ -2629,9 +2642,9 @@
           ent: "~5 bits",
         },
         misc: {
-          what: "CSS media-feature preferences, connection hints, and WebRTC local-network candidates.",
-          why: "Dark mode, reduced-motion, pointer type and display class each leak a bit. Live network metrics (link speed, RTT, storage quota) and WebRTC candidates are shown but kept out of the hash — they change between visits.",
-          ent: "~3 bits",
+          what: "CSS media-feature preferences, connection hints, WebRTC local-network candidates — plus your public IP and its registered location.",
+          why: "Dark mode, reduced-motion, contrast and display mode each leak a bit. Live network metrics, WebRTC candidates and the public-IP lookup (fetched live from a geo-IP service) are shown but kept out of the hash — they change between visits.",
+          ent: "~2 bits",
         },
         behavioral: {
           what: "A live histogram of the time between your pointer and keyboard events.",
@@ -2844,6 +2857,100 @@
         const grid = el("div", "grid" + (panels.length === 1 ? " one" : ""));
         panels.forEach((pc) => grid.appendChild(makePanel(pc)));
         document.getElementById("sections").appendChild(grid);
+      }
+
+      /* ---- 4. Network-side probe (display-only) ---------------------
+   Rendered inside the Network & preferences panel: a public geo-IP
+   lookup of what the visitor's IP reveals. The rows live outside the
+   panel's data.rows, so they are never hashed and never enter the
+   baseline diff.
+   ---------------------------------------------------------------*/
+      function attachNetworkProbe(body) {
+        const kv = el("div", "kv netkv");
+        body.appendChild(kv);
+
+        const setRows = (rows) => {
+          kv.textContent = "";
+          rows.forEach(([k, v, cls]) => {
+            const row = el("div", "row");
+            row.appendChild(el("span", "k", k));
+            const val = el("span", "v" + (cls ? " " + cls : ""));
+            if (v instanceof Node) val.appendChild(v);
+            else val.textContent = v;
+            row.appendChild(val);
+            kv.appendChild(row);
+          });
+        };
+
+        async function fetchGeo() {
+          try {
+            const j = await (await fetch("https://ipwho.is/")).json();
+            if (j && j.success !== false && j.ip)
+              return {
+                ip: j.ip,
+                city: j.city,
+                region: j.region,
+                country: j.country,
+                cc: j.country_code,
+                lat: j.latitude,
+                lon: j.longitude,
+                asn: j.connection && j.connection.asn,
+                org:
+                  (j.connection && (j.connection.org || j.connection.isp)) ||
+                  "",
+              };
+          } catch (e) {}
+          const j = await (await fetch("https://ipapi.co/json/")).json();
+          if (!j || !j.ip) throw new Error("geo lookup failed");
+          return {
+            ip: j.ip,
+            city: j.city,
+            region: j.region,
+            country: j.country_name,
+            cc: j.country_code,
+            lat: j.latitude,
+            lon: j.longitude,
+            asn: j.asn,
+            org: j.org || "",
+          };
+        }
+
+        async function run() {
+          setRows([["Status", "contacting geo-IP service…", "off"]]);
+          try {
+            const geo = await fetchGeo();
+            const rows = [];
+            rows.push(["Public IP", geo.ip]);
+            rows.push([
+              "Location",
+              [geo.city, geo.region, geo.country].filter(Boolean).join(", ") +
+                (geo.cc ? " (" + geo.cc + ")" : ""),
+            ]);
+            if (isFinite(geo.lat) && isFinite(geo.lon)) {
+              const a = el("a", null, geo.lat + ", " + geo.lon);
+              a.href =
+                "https://www.google.com/maps?q=" + geo.lat + "," + geo.lon;
+              a.target = "_blank";
+              a.rel = "noopener";
+              rows.push(["Coordinates", a]);
+            }
+            rows.push([
+              "Network (ASN)",
+              (geo.asn ? "AS" + String(geo.asn).replace(/^AS/, "") + " · " : "") +
+                (geo.org || "unknown"),
+            ]);
+            setRows(rows);
+          } catch (e) {
+            setRows([
+              [
+                "Status",
+                "IP lookup failed — service unreachable (offline, or blocked by an ad/tracker blocker)",
+                "warn",
+              ],
+            ]);
+          }
+        }
+        run();
       }
 
       /* ---- Hero computation ----------------------------------------- */
@@ -3161,6 +3268,13 @@
             c.misc.rows.push(...c.webrtc.rows);
             c.misc.full.webrtc = c.webrtc.full;
           }
+          // network-side probe renders inside the same panel, below the
+          // hashed rows — display-only, never hashed, never diffed
+          c.misc.render = (b) => {
+            try {
+              attachNetworkProbe(b);
+            } catch (e) {}
+          };
           let behav;
           try {
             behav = behavioralPanel();
