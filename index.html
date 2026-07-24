@@ -1333,6 +1333,7 @@
           "414 × 896",
         ];
         let bits = COMMON.includes(res) ? 3 : 5;
+        bits += 1; // panel & input hardware: gamut, HDR, refresh class, pointer, hover
         if (window.devicePixelRatio % 1 !== 0) bits += 1; // scaled displays are rarer
         if (gamut !== "srgb" || hdr === "high") bits += 1; // wide-gamut / HDR panels are rarer
         return {
@@ -2579,7 +2580,7 @@
         screen: {
           what: "Physical display geometry, color depth, pixel ratio, panel capabilities (gamut, HDR, refresh class) and input hardware (pointer, hover).",
           why: "Uncommon resolutions, non-integer pixel ratios (scaled displays) and wide-gamut/HDR panels are surprisingly rare and stable across sessions. Window geometry and orientation are shown but not hashed — they change too easily.",
-          ent: "3–7 bits — common hardware scores lower",
+          ent: "4–8 bits — common hardware scores lower",
         },
         canvas: {
           what: "A hidden 2D drawing rasterized to pixels, then hashed. You can see the exact image below.",
