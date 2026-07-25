@@ -1157,9 +1157,9 @@
           rows = [],
           parts = [];
         let bits = 8; // base; more exposed surface earns more below
-        const add = (k, v, cls) => {
+        const add = (k, v, cls, hashIt = true) => {
           rows.push([k, v == null ? "—" : String(v), cls]);
-          if (v != null) parts.push(k + "=" + v);
+          if (v != null && hashIt) parts.push(k + "=" + v);
         };
         add("User-Agent", n.userAgent);
         add("Platform", n.platform);
@@ -1226,13 +1226,19 @@
                     (he.bitness ? " · " + he.bitness + "-bit" : ""),
                 );
               if (he.model) add("CH device model", he.model);
-              if (he.platformVersion) add("CH OS version", he.platformVersion);
+              // exact OS/browser builds change every few weeks — shown, not
+              // hashed, so the fingerprint survives routine updates (the
+              // major version stays hashed via UA & brands above)
+              if (he.platformVersion)
+                add("CH OS version", he.platformVersion, null, false);
               if (he.fullVersionList)
                 add(
                   "CH full versions",
                   he.fullVersionList
                     .map((b) => b.brand + " " + b.version)
                     .join(", "),
+                  null,
+                  false,
                 );
               full.highEntropy = he;
               bits += 2;
@@ -2573,7 +2579,7 @@
       const TIPS = {
         navigator: {
           what: "Properties the browser volunteers about itself and the OS/hardware underneath.",
-          why: "The User-Agent, CPU thread count and device memory narrow you to a device class; UA Client Hints can leak exact OS builds.",
+          why: "The User-Agent, CPU thread count and device memory narrow you to a device class; UA Client Hints can leak exact OS builds. The exact build numbers are shown but not hashed — they change with routine updates.",
           ent: "8–12 bits — more exposed surface earns more",
         },
         screen: {
@@ -2655,7 +2661,10 @@
 
       /* ---- Signal stability: how trustworthy each is as a persistent ID */
       const STABILITY = {
-        navigator: ["stable", "Fixed by the browser build and hardware."],
+        navigator: [
+          "stable",
+          "Fixed by the browser and hardware. Exact build numbers are shown but not hashed, so routine updates don't rotate the fingerprint.",
+        ],
         screen: [
           "stable",
           "Changes only with hardware, OS scaling or browser zoom. Window geometry is shown but not hashed.",
