@@ -852,21 +852,40 @@
         height: 2px;
         border-radius: 3px 3px 0 0;
         background: var(--surface-2);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column-reverse; /* first stack segment sits at the bottom */
         transition:
           height 0.35s cubic-bezier(0.2, 0.7, 0.3, 1),
           background 0.2s;
       }
       .hb-fill.on {
-        background: var(--amber);
         box-shadow: 0 0 9px rgba(255, 180, 58, 0.35);
       }
+      .hb-seg {
+        width: 100%;
+        min-height: 0;
+      }
       .histo-axis {
-        display: flex;
-        justify-content: space-between;
+        position: relative;
+        height: 14px;
         margin-top: 7px;
         font-family: var(--mono);
         font-size: 9.5px;
         color: var(--ink-3);
+      }
+      .histo-axis .tick {
+        position: absolute;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+      .hleg-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        margin: 0 5px 0 2px;
+        vertical-align: -1px;
       }
       .histo-hint {
         font-family: var(--mono);
@@ -2500,74 +2519,166 @@
 
       /* ---- 3. Behavioral histogram (live, dynamic) ------------------
    Plain HTML flex bars — no SVG viewBox scaling, so nothing distorts.
-   X = time gap between two consecutive input events, bucketed in 10ms
-   steps. Y (bar height) = how many of your gaps fell in that bucket.
+   X = time gap between two consecutive input events OF THE SAME KIND
+   (a keydown right after a mousemove is not a rhythm), on a log scale
+   from 4 ms to 2 s — inter-event gaps are heavy-tailed, so linear
+   bins pile everything into the left edge. Y = how often your gaps
+   land in that bucket, square-root-scaled so the sparse types (keys,
+   clicks) stay visible next to the pointermove flood. Each bar is a
+   stack colored by input type.
    ---------------------------------------------------------------*/
       function behavioralPanel() {
         const BINS = 24,
-          STEP = 10,
-          MAXMS = BINS * STEP; // 24 buckets × 10ms = 0–240ms
-        const bins = new Array(BINS).fill(0);
-        let last = 0,
-          total = 0;
+          MIN = 4,
+          MAX = 2000,
+          LOGR = Math.log(MAX / MIN);
+        const TYPES = [
+          { label: "pointer moves", noun: "moves", color: "var(--amber)" },
+          { label: "keys", noun: "keys", color: "var(--cyan)" },
+          { label: "clicks", noun: "clicks", color: "var(--ink)" },
+          { label: "scroll", noun: "scrolls", color: "var(--red)" },
+        ];
+        const bins = TYPES.map(() => new Array(BINS).fill(0));
+        const last = new Array(TYPES.length).fill(null);
+        const typeTotals = new Array(TYPES.length).fill(0);
+        let total = 0,
+          dirty = true;
+
+        const edge = (i) => MIN * Math.exp((LOGR * i) / BINS);
+        const fmtMs = (v) =>
+          v >= 1000
+            ? (v / 1000).toFixed(1).replace(/\.0$/, "") + " s"
+            : Math.round(v) + " ms";
 
         const wrap = el("div", "histo");
         wrap.appendChild(el("div", "histo-legend")).innerHTML =
-          "Distribution of the <b>time gap between your consecutive input events</b>. " +
-          "Each bar is a 10&thinsp;ms bucket (0–240&thinsp;ms); its height is how often your gaps land there.";
+          "Distribution of the <b>time gap between consecutive input events of the same kind</b> " +
+          " — " +
+          TYPES.map(
+            (t) =>
+              '<span class="hleg-dot" style="background:' +
+              t.color +
+              '"></span>' +
+              t.label,
+          ).join(" · ") +
+          ".";
 
         const plot = el("div", "histo-plot");
-        const fills = [];
+        const fills = [],
+          segs = [],
+          tips = [];
         for (let i = 0; i < BINS; i++) {
           const col = el("div", "hb");
           const f = el("div", "hb-fill");
+          segs.push(
+            TYPES.map((t) => {
+              const s = el("div", "hb-seg");
+              s.style.background = t.color;
+              s.style.flexGrow = 0;
+              f.appendChild(s);
+              return s;
+            }),
+          );
           col.appendChild(f);
+          tips.push(
+            addTip(
+              col,
+              "<b>" + fmtMs(edge(i)) + " – " + fmtMs(edge(i + 1)) + "</b>",
+            ),
+          );
           plot.appendChild(col);
           fills.push(f);
         }
         wrap.appendChild(plot);
 
         const axis = el("div", "histo-axis");
-        ["0", "60", "120", "180", "240 ms"].forEach((t) =>
-          axis.appendChild(el("span", "tick", t)),
-        );
+        [10, 30, 100, 300, 1000].forEach((v) => {
+          const s = el("span", "tick", v === 1000 ? "1 s" : v + " ms");
+          s.style.left = ((Math.log(v / MIN) / LOGR) * 100).toFixed(1) + "%";
+          axis.appendChild(s);
+        });
         wrap.appendChild(axis);
 
-        const hint = el(
-          "div",
-          "histo-hint",
-          "Waiting for input — move your pointer or type anywhere on the page…",
-        );
+        const WAITING =
+          "Waiting for input — move, type, click or scroll anywhere on the page…";
+        const hint = el("div", "histo-hint", WAITING);
         wrap.appendChild(hint);
 
-        function record(t) {
-          if (last) {
-            const dt = t - last;
-            if (dt > 2 && dt < 2000) {
-              const b = Math.min(BINS - 1, Math.floor(dt / STEP));
-              bins[b]++;
-              total++;
-            }
-          }
-          last = t;
+        function record(ti, t) {
+          const prev = last[ti];
+          last[ti] = t;
+          if (prev == null) return;
+          const dt = t - prev;
+          if (dt < MIN || dt >= MAX) return;
+          const b = Math.min(
+            BINS - 1,
+            Math.floor((Math.log(dt / MIN) / LOGR) * BINS),
+          );
+          bins[ti][b]++;
+          typeTotals[ti]++;
+          total++;
+          dirty = true;
         }
-        const onMove = (e) => record(e.timeStamp),
-          onKey = (e) => record(e.timeStamp);
-        window.addEventListener("pointermove", onMove, { passive: true });
-        window.addEventListener("keydown", onKey);
+        window.addEventListener("pointermove", (e) => record(0, e.timeStamp), {
+          passive: true,
+        });
+        window.addEventListener("keydown", (e) => {
+          if (!e.repeat) record(1, e.timeStamp); // autorepeat is the OS's rhythm, not yours
+        });
+        window.addEventListener("pointerdown", (e) => record(2, e.timeStamp), {
+          passive: true,
+        });
+        window.addEventListener("wheel", (e) => record(3, e.timeStamp), {
+          passive: true,
+        });
+
+        // median gap for one type, approximated from the log bins
+        function median(ti) {
+          const n = typeTotals[ti];
+          if (n < 4) return null;
+          let acc = 0;
+          for (let b = 0; b < BINS; b++) {
+            acc += bins[ti][b];
+            if (acc * 2 >= n) return Math.sqrt(edge(b) * edge(b + 1));
+          }
+          return null;
+        }
 
         function draw() {
-          const max = Math.max(1, ...bins);
-          fills.forEach((f, i) => {
-            const c = bins[i];
-            f.style.height = c ? 2 + (c / max) * (100 - 2) + "%" : "2px";
+          if (!dirty || document.hidden) return;
+          dirty = false;
+          const binTotals = bins[0].map((_, b) =>
+            bins.reduce((s, tb) => s + tb[b], 0),
+          );
+          const maxT = Math.max(1, ...binTotals);
+          fills.forEach((f, b) => {
+            const c = binTotals[b];
+            f.style.height = c
+              ? 2 + Math.sqrt(c / maxT) * (100 - 2) + "%"
+              : "2px";
             f.classList.toggle("on", c > 0);
+            segs[b].forEach((s, ti) => (s.style.flexGrow = bins[ti][b]));
+            const parts = TYPES.map((t, ti) =>
+              bins[ti][b] ? bins[ti][b] + " " + t.noun : null,
+            ).filter(Boolean);
+            tips[b].innerHTML =
+              "<b>" +
+              fmtMs(edge(b)) +
+              " – " +
+              fmtMs(edge(b + 1)) +
+              "</b>" +
+              (parts.length ? "<br>" + parts.join(" · ") : "<br>no events yet");
           });
+          const mMove = median(0),
+            mKey = median(1);
           hint.textContent =
             total < 8
-              ? "Waiting for input — move your pointer or type anywhere on the page…"
+              ? WAITING
               : total +
-                " events sampled · your pointer & keyboard cadence forms a distribution as personal as handwriting — but it changes moment to moment, so it augments tracking rather than being a fixed ID.";
+                " events sampled" +
+                (mMove ? " · median move gap ≈ " + fmtMs(mMove) : "") +
+                (mKey ? " · median key gap ≈ " + fmtMs(mKey) : "") +
+                " — your input cadence is as personal as handwriting, but it shifts moment to moment, so it augments tracking rather than being a fixed ID.";
         }
         draw();
         setInterval(draw, 350);
@@ -2653,8 +2764,8 @@
           ent: "~2 bits",
         },
         behavioral: {
-          what: "A live histogram of the time between your pointer and keyboard events.",
-          why: "Motor cadence is individual — but it is dynamic and behavioral, so it augments tracking rather than serving as a fixed ID.",
+          what: "A live, log-scaled histogram of the time between consecutive input events of the same kind — pointer moves, keys, clicks and scrolls, each its own color.",
+          why: "Motor cadence is individual: typing rhythm, click tempo and pointer cadence each form a signature. But it is dynamic and behavioral, so it augments tracking rather than serving as a fixed ID.",
           ent: "dynamic",
         },
       };
@@ -2734,6 +2845,7 @@
         t.setAttribute("role", "tooltip");
         t.innerHTML = html;
         parent.appendChild(t);
+        return t;
       };
 
       /* ---- Section / panel builders --------------------------------- */
@@ -3381,7 +3493,7 @@
               data: c.capabilities,
             },
           ]);
-          addSection("05", "Behavioral (live)", [
+          addSection("05", "Behavioral", [
             {
               title: "Pointer & keyboard cadence",
               key: "behavioral",
