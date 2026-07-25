@@ -292,9 +292,6 @@
         margin-top: 16px;
         position: relative;
       }
-      .spectrum-track .seg {
-        cursor: help;
-      }
       .spectrum-label {
         font-family: var(--mono);
         font-size: 11px;
@@ -316,10 +313,11 @@
       .spectrum-track .seg {
         height: 100%;
         position: relative;
+        cursor: help;
       }
       .spectrum-track .seg + .seg {
         box-shadow: -2px 0 0 var(--surface);
-      } /* 2px surface gap */
+      }
 
       .hero-actions {
         display: flex;
@@ -3158,6 +3156,22 @@
         const oddsEl = document.getElementById("odds");
         const totEl = document.getElementById("spectrum-total");
         const specEl = document.getElementById("spectrum");
+        // calm static placeholder for the spectrum — a dim track of fixed
+        // segments; the real, per-signal segments replace it on settle
+        specEl.innerHTML = "";
+        [1.2, 0.7, 1.0, 1.4, 0.8, 1.1, 0.6, 1.3].forEach((f) => {
+          const seg = el("div", "seg");
+          seg.style.flex = f;
+          seg.style.background = "rgba(255,180,58,0.12)";
+          specEl.appendChild(seg);
+        });
+        // rarity badge placeholder so it doesn't pop out of nowhere later
+        const rar = document.getElementById("rarity");
+        rar.style.display = "inline-flex";
+        rar.querySelector(".swatch").style.background = "var(--ink-3)";
+        const rtxt = rar.querySelector(".rtxt");
+        rtxt.textContent = "analyzing signals…";
+        rtxt.style.color = "var(--ink-3)";
         let running = true;
         function tick() {
           if (!running) return;
@@ -3172,16 +3186,6 @@
             "roughly <b>1 in " +
             fmtBig(Math.pow(2, b)) +
             "</b> browsers share this profile";
-          specEl.innerHTML = "";
-          for (let i = 0; i < 8; i++) {
-            const seg = el("div", "seg");
-            seg.style.flex = (0.4 + Math.random() * 1.2).toFixed(2);
-            seg.style.background =
-              "rgba(255,180,58," +
-              (0.14 + Math.random() * 0.4).toFixed(2) +
-              ")";
-            specEl.appendChild(seg);
-          }
         }
         const iv = setInterval(tick, 70);
         tick();
@@ -3198,10 +3202,11 @@
         const bitsEl = document.getElementById("bits");
         const oddsEl = document.getElementById("odds");
         const totEl = document.getElementById("spectrum-total");
-        const finalOdds =
-          "odds of <b>1 in " +
-          fmtBig(Math.pow(2, shown)) +
-          "</b> that any other browser matches this profile";
+        const odds = (b) =>
+          "roughly <b>1 in " +
+          fmtBig(Math.pow(2, b)) +
+          "</b> browsers share this profile";
+        const finalOdds = odds(shown);
         let frame = 0;
         const iv = setInterval(() => {
           frame++;
@@ -3209,10 +3214,7 @@
             const j = Math.max(1, shown + ((Math.random() * 7) | 0) - 3); // brief jitter near the target
             bitsEl.textContent = j;
             totEl.textContent = "≈ " + j + " bits";
-            oddsEl.innerHTML =
-              "odds of <b>1 in " +
-              fmtBig(Math.pow(2, j)) +
-              "</b> that any other browser matches this profile";
+            oddsEl.innerHTML = odds(j);
           } else {
             bitsEl.textContent = shown;
             totEl.textContent = "≈ " + shown + " bits";
@@ -3242,32 +3244,50 @@
           return fallbackSignal(key, e);
         }
       }
+      // a frame of breathing room between heavy synchronous collectors,
+      // so the hero scramble animation stays smooth during boot
+      const breathe = () =>
+        new Promise((r) =>
+          window.requestIdleCallback
+            ? requestIdleCallback(r, { timeout: 120 })
+            : setTimeout(r, 0),
+        );
 
       (async function boot() {
         const bootStart = performance.now();
         const heroAnim = heroScrambler(); // start the live scramble immediately
         try {
+          // kick off the genuinely async collectors first so their waits
+          // (voice-list deadline, ICE gathering, audio render, client
+          // hints…) all overlap instead of queueing one after another
+          const pending = {
+            navigator: collectSafe("navigator", collectNavigator),
+            audio: collectSafe("audio", collectAudio),
+            media: collectSafe("media", collectMedia),
+            misc: collectSafe("misc", collectMisc),
+            speech: collectSafe("speech", async () =>
+              buildSpeech(await collectVoices()),
+            ),
+            webrtc: collectSafe("webrtc", collectWebRTC),
+          };
+          // the synchronous, main-thread-heavy collectors run meanwhile,
+          // yielding between each so the page never blocks for long
           const c = {};
-          c.screen = await collectSafe("screen", collectScreen);
-          c.locale = await collectSafe("locale", collectLocale);
-          c.canvas = await collectSafe("canvas", collectCanvas);
-          c.webgl = await collectSafe("webgl", collectWebGL);
-          c.css = await collectSafe("css", collectCSS);
-          c.fonts = await collectSafe("fonts", collectFonts);
-          c.math = await collectSafe("math", collectMath);
-          c.jsengine = await collectSafe("jsengine", collectJSEngine);
-          c.capabilities = await collectSafe(
-            "capabilities",
-            collectCapabilities,
-          );
-          c.navigator = await collectSafe("navigator", collectNavigator);
-          c.audio = await collectSafe("audio", collectAudio);
-          c.media = await collectSafe("media", collectMedia);
-          c.misc = await collectSafe("misc", collectMisc);
-          c.speech = await collectSafe("speech", async () =>
-            buildSpeech(await collectVoices()),
-          );
-          c.webrtc = await collectSafe("webrtc", collectWebRTC);
+          for (const [key, fn] of [
+            ["screen", collectScreen],
+            ["locale", collectLocale],
+            ["canvas", collectCanvas],
+            ["webgl", collectWebGL],
+            ["css", collectCSS],
+            ["fonts", collectFonts],
+            ["math", collectMath],
+            ["jsengine", collectJSEngine],
+            ["capabilities", collectCapabilities],
+          ]) {
+            c[key] = await collectSafe(key, fn);
+            await breathe();
+          }
+          for (const key of Object.keys(pending)) c[key] = await pending[key];
           // WebRTC is a small, network-dependent signal — fold it into the network panel
           // rather than giving it a sparse card of its own (still its own entry in the JSON report).
           if (c.webrtc && c.webrtc.rows && c.webrtc.rows.length) {
