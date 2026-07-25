@@ -1279,9 +1279,7 @@
         add("Resolution", res);
         add("Available", s.availWidth + " × " + s.availHeight);
         add("Color depth", s.colorDepth + "-bit");
-        add("Pixel ratio", window.devicePixelRatio);
-        // window geometry & orientation change with resizes, zoom, devtools
-        // and device rotation — shown, but kept out of the stable hash
+        add("Pixel ratio", window.devicePixelRatio, null, false);
         add(
           "Inner window",
           window.innerWidth + " × " + window.innerHeight,
@@ -1350,7 +1348,6 @@
         ];
         let bits = COMMON.includes(res) ? 3 : 5;
         bits += 1; // panel & input hardware: gamut, HDR, refresh class, pointer, hover
-        if (window.devicePixelRatio % 1 !== 0) bits += 1; // scaled displays are rarer
         if (gamut !== "srgb" || hdr === "high") bits += 1; // wide-gamut / HDR panels are rarer
         return {
           rows,
@@ -2778,7 +2775,7 @@
         ],
         screen: [
           "stable",
-          "Changes only with hardware, OS scaling or browser zoom. Window geometry is shown but not hashed.",
+          "Changes only with hardware or OS scaling. Pixel ratio and window geometry are shown but not hashed, since browser zoom alters them.",
         ],
         jsengine: [
           "stable",
