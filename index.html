@@ -547,6 +547,7 @@
         font-family: var(--mono);
         font-size: 12px;
         color: var(--ink-3);
+        cursor: help;
       }
 
       /* info tooltip */
@@ -3373,7 +3374,18 @@
             );
             if (!anyChange) {
               const none = document.getElementById("diff-none");
-              none.textContent = "no changes since last test (" + when + ")";
+              none.textContent = "No changes since last test (" + when + ")";
+              addTip(
+                none,
+                "<b>All " +
+                  STABLE_KEYS.length +
+                  " hashed signals match your last test</b> — and no display-only values drifted either." +
+                  (baseline.fingerprint
+                    ? '<span class="ent">last fingerprint: ' +
+                      esc(grouped(baseline.fingerprint)) +
+                      "</span>"
+                    : ""),
+              );
               none.hidden = false;
             } else {
               const label = document.getElementById("diff-toggle");
