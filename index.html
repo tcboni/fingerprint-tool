@@ -295,35 +295,6 @@
       .spectrum-track .seg {
         cursor: help;
       }
-      .spec-pop {
-        position: absolute;
-        z-index: 40;
-        top: calc(100% + 6px);
-        left: 0;
-        transform: translateX(-50%) translateY(-4px);
-        white-space: nowrap;
-        background: var(--surface-2);
-        border: 1px solid var(--hair-2);
-        border-radius: 8px;
-        padding: 7px 11px;
-        font-family: var(--sans);
-        font-size: 12px;
-        line-height: 1.4;
-        color: var(--ink-2);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        opacity: 0;
-        visibility: hidden;
-        transition: 0.14s;
-        pointer-events: none;
-      }
-      .spec-pop.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(-50%);
-      }
-      .spec-pop b {
-        color: var(--ink);
-      }
       .spectrum-label {
         font-family: var(--mono);
         font-size: 11px;
@@ -535,38 +506,6 @@
         );
         cursor: help;
       }
-      .diffpop {
-        position: absolute;
-        z-index: 40;
-        top: calc(100% + 5px);
-        left: 0;
-        max-width: 330px;
-        background: var(--surface-2);
-        border: 1px solid var(--hair-2);
-        border-radius: 8px;
-        padding: 9px 11px;
-        font-family: var(--sans);
-        font-size: 12px;
-        line-height: 1.5;
-        color: var(--ink-2);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-4px);
-        transition: 0.14s;
-        word-break: break-word;
-        pointer-events: none;
-      }
-      .diffpop b {
-        color: var(--ink);
-      }
-      body.diff-on .kv .row.chg:hover .diffpop,
-      body.diff-on .kv .row.chg.open .diffpop {
-        opacity: 1;
-        visibility: visible;
-        transform: none;
-      }
-
       /* diff toggle in the hero */
       .diff-wrap {
         margin-left: auto;
@@ -598,13 +537,16 @@
         margin: 0;
         cursor: pointer;
       }
-      .diff-status {
-        font-family: var(--mono);
-        font-size: 11px;
-        color: var(--amber);
-      }
-      .diff-status:empty {
+      /* the display:inline-flex on .diff-toggle would defeat the UA's
+         [hidden] rule — restate it for both diff controls */
+      .diff-toggle[hidden],
+      .diff-none[hidden] {
         display: none;
+      }
+      .diff-none {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-3);
       }
 
       /* info tooltip */
@@ -627,7 +569,8 @@
         user-select: none;
       }
       .info:hover,
-      .info:focus-visible {
+      .info:focus-visible,
+      .info.open {
         color: var(--amber);
         border-color: var(--amber-dim);
       }
@@ -635,45 +578,64 @@
         outline: 1px solid var(--amber-dim);
         outline-offset: 2px;
       }
-      .info .pop {
-        position: absolute;
-        z-index: 40;
-        top: 24px;
-        right: -4px;
-        width: 270px;
+
+      /* ── Unified tooltip ───────────────────────────────────────
+         One fixed-position popover serves every tooltip on the page
+         (info buttons, spectrum segments, diff rows, badges, the
+         diff toggle). Anchored to its trigger via CSS anchor
+         positioning; the Tip module covers older engines with a
+         measured fallback. */
+      .tip {
+        position: fixed;
+        z-index: 100;
+        max-width: min(300px, calc(100vw - 24px));
         background: var(--surface-2);
         border: 1px solid var(--hair-2);
         border-radius: 8px;
-        padding: 11px 12px;
+        padding: 10px 12px;
         font-family: var(--sans);
         font-size: 12.5px;
+        font-weight: 400;
+        letter-spacing: 0;
         line-height: 1.5;
         color: var(--ink-2);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        text-align: left;
+        word-break: break-word;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-4px);
-        transition: 0.14s;
-        text-align: left;
-        font-weight: 400;
-        letter-spacing: 0;
+        transition:
+          opacity 0.14s,
+          visibility 0.14s,
+          transform 0.14s;
+        pointer-events: none;
       }
-      .info:hover .pop,
-      .info:focus-visible .pop,
-      .info.open .pop {
+      .tip.show {
         opacity: 1;
         visibility: visible;
         transform: none;
       }
-      .info .pop b {
+      .tip b {
         color: var(--ink);
       }
-      .info .pop .ent {
+      .tip .ent {
         display: block;
         margin-top: 7px;
         color: var(--amber);
         font-family: var(--mono);
         font-size: 11px;
+      }
+      @supports (anchor-name: --a) and (position-area: block-end span-all) {
+        .tip {
+          /* below the trigger, centered on it, clamped to the viewport;
+             flips above when there is no room underneath */
+          position-area: block-end span-all;
+          justify-self: anchor-center;
+          align-self: start;
+          margin: 6px 0 0;
+          position-try-fallbacks: flip-block;
+        }
       }
 
       .kv {
@@ -1053,14 +1015,14 @@
             <span>Copy full report (JSON)</span>
           </button>
           <div class="diff-wrap" id="diff-wrap" hidden>
-            <label class="diff-toggle" id="diff-toggle">
+            <label class="diff-toggle" id="diff-toggle" hidden>
               <input type="checkbox" id="diff-check" />
               <span
                 >Highlight changes since last test (<span id="diff-when">—</span
                 >)</span
               >
             </label>
-            <span class="diff-status" id="diff-status"></span>
+            <span class="diff-none" id="diff-none" hidden></span>
           </div>
         </div>
       </section>
@@ -1157,13 +1119,9 @@
    render?:fn(bodyEl), fonts?:[], full?:obj }
    `bits` = heuristic *maximum* entropy this signal tends to carry.
    ---------------------------------------------------------------*/
-      const REPORT = {
-        meta: {
-          tool: "Fingerprint Tool",
-          note: "computed locally, nothing transmitted",
-        },
-        signals: {},
-      };
+      // meta is completed at boot with collection facts (url, timing,
+      // which signals feed the hash, hash & entropy methodology)
+      const REPORT = { meta: { tool: "Fingerprint Tool" }, signals: {} };
 
       async function collectNavigator() {
         const n = navigator,
@@ -1359,17 +1317,21 @@
       function collectLocale() {
         const rows = [],
           parts = [];
-        const add = (k, v, cls) => {
+        const add = (k, v, cls, hashIt = true) => {
           rows.push([k, String(v), cls]);
-          parts.push(k + "=" + v);
+          if (hashIt) parts.push(k + "=" + v);
         };
         const dtf = Intl.DateTimeFormat().resolvedOptions();
         add("Time zone", dtf.timeZone);
+        // the numeric offset flips twice a year with DST — shown, not
+        // hashed; the IANA zone name above carries the stable signal
         add(
           "UTC offset",
           "UTC" +
             (-new Date().getTimezoneOffset() >= 0 ? "+" : "") +
             -new Date().getTimezoneOffset() / 60,
+          null,
+          false,
         );
         add("Locale", dtf.locale);
         add("Calendar", dtf.calendar);
@@ -1920,9 +1882,13 @@
           if (hashIt) parts.push(k + "=" + v);
         };
         const mq = (q) => window.matchMedia && window.matchMedia(q).matches;
+        // dark/light flips on an OS schedule for many users (auto dark
+        // mode) — shown, kept out of the stable hash
         add(
           "Color scheme",
           mq("(prefers-color-scheme: dark)") ? "dark" : "light",
+          null,
+          false,
         );
         add(
           "Reduced motion",
@@ -2629,7 +2595,7 @@
         },
         locale: {
           what: "Timezone, language, calendar and how your locale formats numbers and dates.",
-          why: "Timezone plus language plus formatting quirks geolocate and segment you, and stay constant.",
+          why: "Timezone plus language plus formatting quirks geolocate and segment you, and stay constant. The numeric UTC offset is shown but not hashed — it flips twice a year with daylight-saving time.",
           ent: "~4 bits",
         },
         media: {
@@ -2644,7 +2610,7 @@
         },
         misc: {
           what: "CSS media-feature preferences, connection hints, WebRTC local-network candidates — plus your public IP and its registered location.",
-          why: "Dark mode, reduced-motion, contrast and display mode each leak a bit. Live network metrics, WebRTC candidates and the public-IP lookup (fetched live from a geo-IP service) are shown but kept out of the hash — they change between visits.",
+          why: "Reduced-motion, contrast, forced-colors and display mode each leak a bit. The color scheme is shown but not hashed — many OSs flip dark/light automatically on a daily schedule. Live network metrics, WebRTC candidates and the public-IP lookup (fetched live from a geo-IP service) are likewise shown but kept out of the hash.",
           ent: "~2 bits",
         },
         behavioral: {
@@ -2684,7 +2650,10 @@
           "drifts",
           "The voice list loads asynchronously and follows OS language packs — excluded from the fingerprint hash.",
         ],
-        locale: ["stable", "Changes only with travel or language settings."],
+        locale: [
+          "stable",
+          "Changes only with travel or language settings. The DST-dependent UTC offset is shown but not hashed.",
+        ],
         media: [
           "drifts",
           "Changes when you plug or unplug cameras, mics and headphones — excluded from the fingerprint hash.",
@@ -2692,7 +2661,7 @@
         capabilities: ["stable", "Changes only when the browser updates."],
         misc: [
           "drifts",
-          "Follows OS theme and network state; the volatile network metrics are excluded from the hash.",
+          "Follows OS theme and network state; the schedule-flippable color scheme and volatile network metrics are excluded from the hash.",
         ],
         behavioral: [
           "live",
@@ -2714,20 +2683,111 @@
         return Math.round(s / 86400) + " d ago";
       }
 
-      /* ---- Section / panel builders --------------------------------- */
-      function closeInfoPops() {
-        document.querySelectorAll(".info.open").forEach((i) => {
-          i.classList.remove("open");
-          i.setAttribute("aria-expanded", "false");
+      /* ---- Unified tooltip ------------------------------------------
+   One popover element serves every tooltip on the page: info buttons,
+   spectrum segments, changed-row diffs, stability badges, change dots
+   and the diff toggle. Positioned with CSS anchor positioning where
+   supported (each trigger gets an anchor-name, the popover follows it
+   via position-area); a measured fixed-position fallback covers the
+   rest. `content` may be a string or a function returning one — an
+   empty return suppresses the tooltip (used to gate diff rows).
+   opts: { pin: toggle-open on click (touch support),
+           aria: mirror pinned state to aria-expanded,
+           when: predicate gating the click-to-pin } ---------------- */
+      const Tip = (() => {
+        const tip = el("div", "tip");
+        tip.setAttribute("role", "tooltip");
+        document.body.appendChild(tip);
+        const anchorOK =
+          window.CSS &&
+          CSS.supports &&
+          CSS.supports("anchor-name: --a") &&
+          CSS.supports("position-area: block-end span-all");
+        let seq = 0,
+          pinned = null;
+        function place(anchor) {
+          if (anchorOK) {
+            if (!anchor._tipName) {
+              anchor._tipName = "--tip-" + ++seq;
+              anchor.style.anchorName = anchor._tipName;
+            }
+            tip.style.positionAnchor = anchor._tipName;
+            return;
+          }
+          // fallback: measure, center under the trigger, clamp to viewport
+          tip.style.visibility = "hidden";
+          tip.classList.add("show");
+          const r = anchor.getBoundingClientRect();
+          const w = tip.offsetWidth,
+            h = tip.offsetHeight;
+          const x = Math.max(
+            8,
+            Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2),
+          );
+          let y = r.bottom + 6;
+          if (y + h > window.innerHeight - 8) y = r.top - h - 6;
+          tip.style.left = x + "px";
+          tip.style.top = y + "px";
+          tip.style.visibility = "";
+        }
+        function show(anchor) {
+          const html =
+            typeof anchor._tip === "function" ? anchor._tip() : anchor._tip;
+          if (!html) return;
+          tip.innerHTML = html;
+          place(anchor);
+          tip.classList.add("show");
+        }
+        function hide() {
+          if (pinned) {
+            pinned.classList.remove("open");
+            if (pinned._tipAria) pinned.setAttribute("aria-expanded", "false");
+            pinned = null;
+          }
+          tip.classList.remove("show");
+        }
+        function attach(anchor, content, opts) {
+          opts = opts || {};
+          anchor._tip = content;
+          anchor._tipAria = !!opts.aria;
+          anchor.addEventListener("mouseenter", () => {
+            if (!pinned) show(anchor);
+          });
+          anchor.addEventListener("mouseleave", () => {
+            if (!pinned) hide();
+          });
+          anchor.addEventListener("focus", () => {
+            if (!pinned) show(anchor);
+          });
+          anchor.addEventListener("blur", () => {
+            if (!pinned) hide();
+          });
+          if (opts.pin)
+            anchor.addEventListener("click", (ev) => {
+              if (opts.when && !opts.when()) return;
+              ev.stopPropagation();
+              const wasPinned = pinned === anchor;
+              hide();
+              if (!wasPinned) {
+                pinned = anchor;
+                anchor.classList.add("open");
+                if (anchor._tipAria)
+                  anchor.setAttribute("aria-expanded", "true");
+                show(anchor);
+              }
+            });
+        }
+        document.addEventListener("click", hide);
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") hide();
         });
-        document
-          .querySelectorAll(".kv .row.chg.open")
-          .forEach((r) => r.classList.remove("open"));
-      }
-      document.addEventListener("click", closeInfoPops);
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeInfoPops();
-      });
+        // anchor positioning tracks a scrolling trigger; the fallback can't
+        if (!anchorOK)
+          window.addEventListener("scroll", hide, { passive: true });
+        return { attach, hide };
+      })();
+
+      /* ---- Section / panel builders --------------------------------- */
 
       function makePanel(cfg) {
         // cfg: {title, key, data}
@@ -2743,16 +2803,18 @@
           const dot = el("span", "chgdot");
           const hashed =
             STABLE_KEYS.includes(cfg.key) && !cfg.data.excluded;
-          dot.title =
+          Tip.attach(
+            dot,
             hashed && diff.hashChanged
               ? "Changed since last test — affects the fingerprint"
-              : "Changed since last test — display-only; the fingerprint is unaffected";
+              : "Changed since last test — display-only; the fingerprint is unaffected",
+          );
           head.appendChild(dot);
         }
         const stab = STABILITY[cfg.key];
         if (stab) {
           const s = el("span", "stab " + stab[0], stab[0]);
-          s.title = stab[1];
+          Tip.attach(s, esc(stab[1]));
           head.appendChild(s);
         }
         // info
@@ -2762,30 +2824,22 @@
           info.type = "button";
           info.setAttribute("aria-label", "About the " + cfg.title + " signal");
           info.setAttribute("aria-expanded", "false");
-          const pop = el("div", "pop");
-          pop.innerHTML =
+          Tip.attach(
+            info,
             "<b>What:</b> " +
-            esc(tip.what) +
-            "<br><b>Why it leaks:</b> " +
-            esc(tip.why) +
-            '<span class="ent">Typical entropy: ' +
-            tip.ent +
-            "</span>" +
-            (cfg.data.excluded
-              ? '<span class="ent">Excluded from the hash — ' +
-                esc(cfg.data.note || "unstable between visits") +
-                "</span>"
-              : "");
-          info.appendChild(pop);
-          info.addEventListener("click", (ev) => {
-            ev.stopPropagation();
-            const wasOpen = info.classList.contains("open");
-            closeInfoPops();
-            if (!wasOpen) {
-              info.classList.add("open");
-              info.setAttribute("aria-expanded", "true");
-            }
-          });
+              esc(tip.what) +
+              "<br><b>Why it leaks:</b> " +
+              esc(tip.why) +
+              '<span class="ent">Typical entropy: ' +
+              tip.ent +
+              "</span>" +
+              (cfg.data.excluded
+                ? '<span class="ent">Excluded from the hash — ' +
+                  esc(cfg.data.note || "unstable between visits") +
+                  "</span>"
+                : ""),
+            { pin: true, aria: true },
+          );
           head.appendChild(info);
         }
         p.appendChild(head);
@@ -2802,18 +2856,20 @@
             const old = diff && diff.rowChanges[k];
             if (old != null) {
               row.classList.add("chg");
-              const dp = el("div", "diffpop");
-              dp.innerHTML =
-                "<b>last test:</b> " + esc(old) + "<br><b>now:</b> " + esc(v);
-              row.appendChild(dp);
-              // tap fallback for touch devices (hover handles pointers)
-              row.addEventListener("click", (ev) => {
-                if (!document.body.classList.contains("diff-on")) return;
-                ev.stopPropagation();
-                const wasOpen = row.classList.contains("open");
-                closeInfoPops();
-                if (!wasOpen) row.classList.add("open");
-              });
+              // only speaks while the diff toggle is on; pin covers touch
+              const diffOn = () =>
+                document.body.classList.contains("diff-on");
+              Tip.attach(
+                row,
+                () =>
+                  diffOn()
+                    ? "<b>last test:</b> " +
+                      esc(old) +
+                      "<br><b>now:</b> " +
+                      esc(v)
+                    : "",
+                { pin: true, when: diffOn },
+              );
             }
             kv.appendChild(row);
           });
@@ -3008,14 +3064,16 @@
           color = "var(--red)";
           label = "Almost certainly unique";
         }
-        document.getElementById("verdict").innerHTML =
+        typeText(
+          document.getElementById("verdict"),
           'Your browser is <strong style="color:' +
-          color +
-          '">' +
-          verdict +
-          "</strong>. It reveals about <strong>" +
-          eff +
-          " bits</strong> of entropy — combining these otherwise-weak signals is enough to single you out and re-recognize you on later visits, with no cookies involved.";
+            color +
+            '">' +
+            verdict +
+            "</strong>. It reveals about <strong>" +
+            eff +
+            " bits</strong> of entropy — combining these otherwise-weak signals is enough to single you out and re-recognize you on later visits, with no cookies involved.",
+        );
         const rar = document.getElementById("rarity");
         rar.style.display = "inline-flex";
         rar.querySelector(".swatch").style.background = color;
@@ -3050,11 +3108,12 @@
           seg.style.flex = b;
           const t = 0.35 + 0.65 * (b / maxb);
           seg.style.background = "rgba(255,180,58," + t.toFixed(2) + ")";
-          seg.dataset.name = SIGNAL_NAMES[k] || k;
-          seg.dataset.bits = b;
+          Tip.attach(
+            seg,
+            "<b>" + esc(SIGNAL_NAMES[k] || k) + "</b> · ~" + b + " bits",
+          );
           spec.appendChild(seg);
         });
-        attachSpectrumPop();
 
         return { fp, eff };
       }
@@ -3076,34 +3135,6 @@
         misc: "Network & preferences",
       };
 
-      /* styled hover popover for the spectrum segments (same look as the
-     info/diff popovers, instead of the browser's plain title tooltip) */
-      function attachSpectrumPop() {
-        const spectrum = document.querySelector(".spectrum");
-        const track = document.getElementById("spectrum");
-        const pop = el("div", "spec-pop");
-        spectrum.appendChild(pop);
-        track.addEventListener("mouseover", (e) => {
-          const seg = e.target.closest(".seg");
-          if (!seg || !seg.dataset.name) return;
-          pop.innerHTML =
-            "<b>" +
-            esc(seg.dataset.name) +
-            "</b> · ~" +
-            esc(seg.dataset.bits) +
-            " bits";
-          pop.classList.add("show");
-          const segRect = seg.getBoundingClientRect();
-          const wrapRect = spectrum.getBoundingClientRect();
-          const half = pop.offsetWidth / 2;
-          const x = segRect.left - wrapRect.left + segRect.width / 2;
-          pop.style.left =
-            Math.max(half, Math.min(wrapRect.width - half, x)) + "px";
-        });
-        track.addEventListener("mouseleave", () =>
-          pop.classList.remove("show"),
-        );
-      }
       function fmtBig(n) {
         if (n < 1000) return Math.round(n).toString();
         const units = [
@@ -3156,6 +3187,38 @@
             elm.textContent = target;
           }
         }, 30);
+      }
+
+      /* ---- Typewriter: reveal rich text one character at a time ------
+     Renders the final markup first (so <strong> styling survives),
+     measures it to pin the height (no reflow while typing), then
+     empties the text nodes and refills them left→right. ------------- */
+      function typeText(elm, html, charsPerSec) {
+        elm.innerHTML = html;
+        elm.style.minHeight = elm.offsetHeight + "px";
+        const nodes = [];
+        const walker = document.createTreeWalker(elm, NodeFilter.SHOW_TEXT);
+        let nd;
+        while ((nd = walker.nextNode())) nodes.push([nd, nd.nodeValue]);
+        const total = nodes.reduce((s, x) => s + x[1].length, 0);
+        nodes.forEach((x) => (x[0].nodeValue = ""));
+        const speed = charsPerSec || 260;
+        const t0 = performance.now();
+        (function step(now) {
+          const shown = Math.min(
+            total,
+            Math.round(((now - t0) / 1000) * speed),
+          );
+          let left = shown;
+          for (const [node, text] of nodes) {
+            const take = Math.max(0, Math.min(text.length, left));
+            if (node.nodeValue.length !== take)
+              node.nodeValue = text.slice(0, take);
+            left -= text.length;
+          }
+          if (shown < total) requestAnimationFrame(step);
+          else elm.style.minHeight = "";
+        })(t0);
       }
 
       /* ---- Pre-compute scramble: keep the whole hero "live" while the
@@ -3254,6 +3317,7 @@
       }
 
       (async function boot() {
+        const bootStart = performance.now();
         const heroAnim = heroScrambler(); // start the live scramble immediately
         try {
           const c = {};
@@ -3371,50 +3435,54 @@
 
           const hero = renderHero(c, heroAnim);
 
-          // Diff toggle — absent entirely on first visit
+          // Diff control — absent entirely on first visit. When nothing
+          // changed there is nothing to highlight, so the checkbox gives
+          // way to a muted note; otherwise the explanation lives in a
+          // tooltip on the toggle instead of a line of its own.
           if (baseline && baseline.generatedAt) {
-            const check = document.getElementById("diff-check");
-            const status = document.getElementById("diff-status");
             document.getElementById("diff-wrap").hidden = false;
-            document.getElementById("diff-when").textContent = relTime(
-              baseline.generatedAt,
+            const when = relTime(baseline.generatedAt);
+            const anyChange = Object.values(DIFF).some(
+              (d) => d.digestChanged || Object.keys(d.rowChanges).length > 0,
             );
-            const total = STABLE_KEYS.length;
-            const matched = STABLE_KEYS.filter(
-              (k) => DIFF[k] && !DIFF[k].hashChanged,
-            ).length;
-            const rowsDrifted = Object.values(DIFF).some(
-              (d) => Object.keys(d.rowChanges).length > 0,
-            );
-            const setState = (on) => {
-              document.body.classList.toggle("diff-on", on);
-              if (!on) {
-                status.textContent = "";
-                closeInfoPops();
-                return;
-              }
-              if (matched === total && !rowsDrifted)
-                status.textContent = "no changes since last test";
-              else if (matched === total)
-                status.textContent =
-                  "all " +
+            if (!anyChange) {
+              const none = document.getElementById("diff-none");
+              none.textContent = "no changes since last test (" + when + ")";
+              none.hidden = false;
+            } else {
+              const label = document.getElementById("diff-toggle");
+              const check = document.getElementById("diff-check");
+              label.hidden = false;
+              document.getElementById("diff-when").textContent = when;
+              const total = STABLE_KEYS.length;
+              const matched = STABLE_KEYS.filter(
+                (k) => DIFF[k] && !DIFF[k].hashChanged,
+              ).length;
+              Tip.attach(
+                label,
+                "<b>" +
+                  matched +
+                  " of " +
                   total +
-                  " signals match — only display-only values drifted";
-              else
-                status.textContent =
-                  matched + " of " + total + " signals match your last test";
-            };
-            check.addEventListener("change", () => {
-              setState(check.checked);
+                  " hashed signals match your last test.</b><br>" +
+                  (matched === total
+                    ? "Only display-only values drifted — the fingerprint itself is unchanged. "
+                    : "") +
+                  "Toggling marks changed panels with an amber dot and outlines changed rows; hover a row to compare values.",
+              );
+              check.addEventListener("change", () => {
+                document.body.classList.toggle("diff-on", check.checked);
+                if (!check.checked) Tip.hide();
+                try {
+                  localStorage.setItem(DIFF_ON_KEY, check.checked ? "1" : "0");
+                } catch (e) {}
+              });
               try {
-                localStorage.setItem(DIFF_ON_KEY, check.checked ? "1" : "0");
+                if (localStorage.getItem(DIFF_ON_KEY) === "1")
+                  check.checked = true;
               } catch (e) {}
-            });
-            try {
-              if (localStorage.getItem(DIFF_ON_KEY) === "1")
-                check.checked = true;
-            } catch (e) {}
-            setState(check.checked);
+              document.body.classList.toggle("diff-on", check.checked);
+            }
           }
 
           // Save this test as the new baseline (localStorage only)
@@ -3448,6 +3516,17 @@
               bits: c[k].bits,
               value: c[k].full !== undefined ? c[k].full : c[k].raw,
             };
+          });
+          Object.assign(REPORT.meta, {
+            url: location.href,
+            hashedSignals: STABLE_KEYS.slice(),
+            excludedFromHash: Object.keys(c).filter(
+              (k) => !STABLE_KEYS.includes(k),
+            ),
+            hashAlgorithm: "FNV-1a-style 96-bit mix (non-cryptographic)",
+            entropyModel:
+              "sum of per-signal heuristic maxima × 0.62 correlation discount",
+            collectionMs: Math.round(performance.now() - bootStart),
           });
           REPORT.fingerprint = hero.fp;
           REPORT.estimatedEntropyBits = hero.eff;
