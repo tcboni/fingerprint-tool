@@ -569,8 +569,7 @@
         user-select: none;
       }
       .info:hover,
-      .info:focus-visible,
-      .info.open {
+      .info:focus-visible {
         color: var(--amber);
         border-color: var(--amber-dim);
       }
@@ -579,15 +578,15 @@
         outline-offset: 2px;
       }
 
-      /* ── Unified tooltip ───────────────────────────────────────
-         One fixed-position popover serves every tooltip on the page
-         (info buttons, spectrum segments, diff rows, badges, the
-         diff toggle). Anchored to its trigger via CSS anchor
-         positioning; the Tip module covers older engines with a
-         measured fallback. */
+      /* ── Tooltips ── */
+      :has(> .tip) {
+        anchor-name: --tt;
+        anchor-scope: --tt;
+      }
       .tip {
         position: fixed;
         z-index: 100;
+        width: max-content;
         max-width: min(300px, calc(100vw - 24px));
         background: var(--surface-2);
         border: 1px solid var(--hair-2);
@@ -598,23 +597,29 @@
         font-weight: 400;
         letter-spacing: 0;
         line-height: 1.5;
+        text-transform: none;
+        white-space: normal;
         color: var(--ink-2);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
         text-align: left;
         word-break: break-word;
+        cursor: auto;
         opacity: 0;
         visibility: hidden;
-        transform: translateY(-4px);
         transition:
           opacity 0.14s,
-          visibility 0.14s,
-          transform 0.14s;
+          visibility 0.14s;
         pointer-events: none;
       }
-      .tip.show {
+      :hover > .tip,
+      :focus-visible > .tip,
+      :focus-within > .tip {
         opacity: 1;
         visibility: visible;
-        transform: none;
+      }
+      body:not(.diff-on) .kv .row.chg > .tip {
+        opacity: 0;
+        visibility: hidden;
       }
       .tip b {
         color: var(--ink);
@@ -626,15 +631,40 @@
         font-family: var(--mono);
         font-size: 11px;
       }
-      @supports (anchor-name: --a) and (position-area: block-end span-all) {
+      @supports (anchor-name: --a) and (anchor-scope: --a) and
+        (position-area: block-end span-all) {
         .tip {
           /* below the trigger, centered on it, clamped to the viewport;
              flips above when there is no room underneath */
+          position-anchor: --tt;
           position-area: block-end span-all;
           justify-self: anchor-center;
           align-self: start;
           margin: 6px 0 0;
           position-try-fallbacks: flip-block;
+        }
+      }
+      @supports not (
+        (anchor-name: --a) and (anchor-scope: --a) and
+          (position-area: block-end span-all)
+      ) {
+        :has(> .tip):not(.seg) {
+          position: relative;
+        }
+        .tip {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        .phead :is(.chgdot, .stab, .info) > .tip,
+        .diff-toggle > .tip {
+          left: auto;
+          right: -4px;
+          transform: none;
+        }
+        .hero {
+          overflow: visible;
         }
       }
 
@@ -949,7 +979,7 @@
         </div>
 
         <div class="hero-actions">
-          <button class="btn" id="copy-fp">
+          <button class="btn primary" id="copy-fp">
             <svg
               class="ic ic-def"
               viewBox="0 0 24 24"
@@ -963,7 +993,9 @@
               aria-hidden="true"
             >
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              <path
+                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              />
             </svg>
             <svg
               class="ic ic-check"
@@ -981,7 +1013,7 @@
             </svg>
             <span>Copy fingerprint</span>
           </button>
-          <button class="btn primary" id="copy-json">
+          <button class="btn" id="copy-json">
             <svg
               class="ic ic-def"
               viewBox="0 0 24 24"
@@ -1258,7 +1290,11 @@
         add("HDR", hdr);
         add(
           "Update rate",
-          mq("(update: fast)") ? "fast" : mq("(update: slow)") ? "slow" : "none",
+          mq("(update: fast)")
+            ? "fast"
+            : mq("(update: slow)")
+              ? "slow"
+              : "none",
         );
         add(
           "Pointer",
@@ -2684,108 +2720,15 @@
       }
 
       /* ---- Unified tooltip ------------------------------------------
-   One popover element serves every tooltip on the page: info buttons,
-   spectrum segments, changed-row diffs, stability badges, change dots
-   and the diff toggle. Positioned with CSS anchor positioning where
-   supported (each trigger gets an anchor-name, the popover follows it
-   via position-area); a measured fixed-position fallback covers the
-   rest. `content` may be a string or a function returning one — an
-   empty return suppresses the tooltip (used to gate diff rows).
-   opts: { pin: toggle-open on click (touch support),
-           aria: mirror pinned state to aria-expanded,
-           when: predicate gating the click-to-pin } ---------------- */
-      const Tip = (() => {
-        const tip = el("div", "tip");
-        tip.setAttribute("role", "tooltip");
-        document.body.appendChild(tip);
-        const anchorOK =
-          window.CSS &&
-          CSS.supports &&
-          CSS.supports("anchor-name: --a") &&
-          CSS.supports("position-area: block-end span-all");
-        let seq = 0,
-          pinned = null;
-        function place(anchor) {
-          if (anchorOK) {
-            if (!anchor._tipName) {
-              anchor._tipName = "--tip-" + ++seq;
-              anchor.style.anchorName = anchor._tipName;
-            }
-            tip.style.positionAnchor = anchor._tipName;
-            return;
-          }
-          // fallback: measure, center under the trigger, clamp to viewport
-          tip.style.visibility = "hidden";
-          tip.classList.add("show");
-          const r = anchor.getBoundingClientRect();
-          const w = tip.offsetWidth,
-            h = tip.offsetHeight;
-          const x = Math.max(
-            8,
-            Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2),
-          );
-          let y = r.bottom + 6;
-          if (y + h > window.innerHeight - 8) y = r.top - h - 6;
-          tip.style.left = x + "px";
-          tip.style.top = y + "px";
-          tip.style.visibility = "";
-        }
-        function show(anchor) {
-          const html =
-            typeof anchor._tip === "function" ? anchor._tip() : anchor._tip;
-          if (!html) return;
-          tip.innerHTML = html;
-          place(anchor);
-          tip.classList.add("show");
-        }
-        function hide() {
-          if (pinned) {
-            pinned.classList.remove("open");
-            if (pinned._tipAria) pinned.setAttribute("aria-expanded", "false");
-            pinned = null;
-          }
-          tip.classList.remove("show");
-        }
-        function attach(anchor, content, opts) {
-          opts = opts || {};
-          anchor._tip = content;
-          anchor._tipAria = !!opts.aria;
-          anchor.addEventListener("mouseenter", () => {
-            if (!pinned) show(anchor);
-          });
-          anchor.addEventListener("mouseleave", () => {
-            if (!pinned) hide();
-          });
-          anchor.addEventListener("focus", () => {
-            if (!pinned) show(anchor);
-          });
-          anchor.addEventListener("blur", () => {
-            if (!pinned) hide();
-          });
-          if (opts.pin)
-            anchor.addEventListener("click", (ev) => {
-              if (opts.when && !opts.when()) return;
-              ev.stopPropagation();
-              const wasPinned = pinned === anchor;
-              hide();
-              if (!wasPinned) {
-                pinned = anchor;
-                anchor.classList.add("open");
-                if (anchor._tipAria)
-                  anchor.setAttribute("aria-expanded", "true");
-                show(anchor);
-              }
-            });
-        }
-        document.addEventListener("click", hide);
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") hide();
-        });
-        // anchor positioning tracks a scrolling trigger; the fallback can't
-        if (!anchorOK)
-          window.addEventListener("scroll", hide, { passive: true });
-        return { attach, hide };
-      })();
+   The engine is pure CSS (see the .tip rules): any element given a
+   .tip child becomes a hover/focus tooltip trigger, positioned via
+   CSS anchor positioning. This helper only builds the child. ------ */
+      const addTip = (parent, html) => {
+        const t = el("div", "tip");
+        t.setAttribute("role", "tooltip");
+        t.innerHTML = html;
+        parent.appendChild(t);
+      };
 
       /* ---- Section / panel builders --------------------------------- */
 
@@ -2801,9 +2744,8 @@
           (diff.digestChanged || Object.keys(diff.rowChanges).length)
         ) {
           const dot = el("span", "chgdot");
-          const hashed =
-            STABLE_KEYS.includes(cfg.key) && !cfg.data.excluded;
-          Tip.attach(
+          const hashed = STABLE_KEYS.includes(cfg.key) && !cfg.data.excluded;
+          addTip(
             dot,
             hashed && diff.hashChanged
               ? "Changed since last test — affects the fingerprint"
@@ -2814,7 +2756,7 @@
         const stab = STABILITY[cfg.key];
         if (stab) {
           const s = el("span", "stab " + stab[0], stab[0]);
-          Tip.attach(s, esc(stab[1]));
+          addTip(s, esc(stab[1]));
           head.appendChild(s);
         }
         // info
@@ -2823,8 +2765,7 @@
           const info = el("button", "info", "i");
           info.type = "button";
           info.setAttribute("aria-label", "About the " + cfg.title + " signal");
-          info.setAttribute("aria-expanded", "false");
-          Tip.attach(
+          addTip(
             info,
             "<b>What:</b> " +
               esc(tip.what) +
@@ -2838,7 +2779,6 @@
                   esc(cfg.data.note || "unstable between visits") +
                   "</span>"
                 : ""),
-            { pin: true, aria: true },
           );
           head.appendChild(info);
         }
@@ -2856,19 +2796,10 @@
             const old = diff && diff.rowChanges[k];
             if (old != null) {
               row.classList.add("chg");
-              // only speaks while the diff toggle is on; pin covers touch
-              const diffOn = () =>
-                document.body.classList.contains("diff-on");
-              Tip.attach(
+              // CSS keeps this silent until the diff toggle is on
+              addTip(
                 row,
-                () =>
-                  diffOn()
-                    ? "<b>last test:</b> " +
-                      esc(old) +
-                      "<br><b>now:</b> " +
-                      esc(v)
-                    : "",
-                { pin: true, when: diffOn },
+                "<b>last test:</b> " + esc(old) + "<br><b>now:</b> " + esc(v),
               );
             }
             kv.appendChild(row);
@@ -2892,8 +2823,7 @@
           track.appendChild(fill);
           m.appendChild(track);
           const bits = el("div", "bits");
-          bits.innerHTML =
-            "<b>" + data.bits.toFixed(1) + "</b> bits";
+          bits.innerHTML = "<b>" + data.bits.toFixed(1) + "</b> bits";
           m.appendChild(bits);
           p.appendChild(m);
           requestAnimationFrame(() => {
@@ -2993,8 +2923,9 @@
             }
             rows.push([
               "Network (ASN)",
-              (geo.asn ? "AS" + String(geo.asn).replace(/^AS/, "") + " · " : "") +
-                (geo.org || "unknown"),
+              (geo.asn
+                ? "AS" + String(geo.asn).replace(/^AS/, "") + " · "
+                : "") + (geo.org || "unknown"),
             ]);
             setRows(rows);
           } catch (e) {
@@ -3108,7 +3039,7 @@
           seg.style.flex = b;
           const t = 0.35 + 0.65 * (b / maxb);
           seg.style.background = "rgba(255,180,58," + t.toFixed(2) + ")";
-          Tip.attach(
+          addTip(
             seg,
             "<b>" + esc(SIGNAL_NAMES[k] || k) + "</b> · ~" + b + " bits",
           );
@@ -3191,11 +3122,9 @@
 
       /* ---- Typewriter: reveal rich text one character at a time ------
      Renders the final markup first (so <strong> styling survives),
-     measures it to pin the height (no reflow while typing), then
-     empties the text nodes and refills them left→right. ------------- */
+     then empties the text nodes and refills them left→right. -------- */
       function typeText(elm, html, charsPerSec) {
         elm.innerHTML = html;
-        elm.style.minHeight = elm.offsetHeight + "px";
         const nodes = [];
         const walker = document.createTreeWalker(elm, NodeFilter.SHOW_TEXT);
         let nd;
@@ -3217,7 +3146,6 @@
             left -= text.length;
           }
           if (shown < total) requestAnimationFrame(step);
-          else elm.style.minHeight = "";
         })(t0);
       }
 
@@ -3458,7 +3386,7 @@
               const matched = STABLE_KEYS.filter(
                 (k) => DIFF[k] && !DIFF[k].hashChanged,
               ).length;
-              Tip.attach(
+              addTip(
                 label,
                 "<b>" +
                   matched +
@@ -3468,11 +3396,15 @@
                   (matched === total
                     ? "Only display-only values drifted — the fingerprint itself is unchanged. "
                     : "") +
-                  "Toggling marks changed panels with an amber dot and outlines changed rows; hover a row to compare values.",
+                  "Toggling marks changed panels with an amber dot and outlines changed rows; hover a row to compare values." +
+                  (baseline.fingerprint
+                    ? '<span class="ent">last fingerprint: ' +
+                      esc(grouped(baseline.fingerprint)) +
+                      "</span>"
+                    : ""),
               );
               check.addEventListener("change", () => {
                 document.body.classList.toggle("diff-on", check.checked);
-                if (!check.checked) Tip.hide();
                 try {
                   localStorage.setItem(DIFF_ON_KEY, check.checked ? "1" : "0");
                 } catch (e) {}
@@ -3551,9 +3483,7 @@
             .getElementById("copy-json")
             .addEventListener("click", (e) => {
               const btn = e.currentTarget;
-              copyText(JSON.stringify(REPORT, null, 2), () =>
-                flashCopied(btn),
-              );
+              copyText(JSON.stringify(REPORT, null, 2), () => flashCopied(btn));
             });
         } catch (e) {
           heroAnim.stop();
