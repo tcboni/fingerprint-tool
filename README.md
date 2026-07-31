@@ -1,4 +1,4 @@
-# Fingerprint Tool
+# Fingerprint
 
 A dashboard that shows you, live, what your browser silently
 reveals about you — and how those weak signals combine into a near-unique
@@ -6,7 +6,7 @@ reveals about you — and how those weak signals combine into a near-unique
 fingerprint hash and an entropy estimate entirely in your browser, and explains
 what each signal is and why it's identifying.
 
-**[→ Open Fingerprint Tool](https://tcboni.github.io/fingerprint-tool/)**
+**[→ Open Fingerprint](https://tcboni.github.io/fingerprint/)**
 
 ## What it measures
 
