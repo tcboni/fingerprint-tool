@@ -6,14 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>Fingerprint Tool</title>
+    <title>Fingerprint</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2032%2032'%3E%3Crect%20width%3D'32'%20height%3D'32'%20rx%3D'7'%20fill%3D'%23101012'%2F%3E%3Cg%20fill%3D'none'%20stroke%3D'%23ffb43a'%20stroke-width%3D'1.7'%20stroke-linecap%3D'round'%3E%3Ccircle%20cx%3D'16'%20cy%3D'16'%20r%3D'2.2'%2F%3E%3Cpath%20d%3D'M16%209.5a6.5%206.5%200%200%201%206.5%206.5'%2F%3E%3Cpath%20d%3D'M16%2012.8a3.2%203.2%200%200%201%203.2%203.2'%2F%3E%3Cpath%20d%3D'M9.5%2016a6.5%206.5%200%200%201%206.5-6.5'%2F%3E%3Cpath%20d%3D'M12.8%2016a3.2%203.2%200%200%201%203.2-3.2'%2F%3E%3Cpath%20d%3D'M16%2022.5a6.5%206.5%200%200%201-6.5-6.5'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"
     />
     <style>
       /* ─────────────────────────────────────────────────────────────
-     Fingerprint Tool — a browser-fingerprinting instrument
+     Fingerprint — a browser-fingerprinting instrument
      Aesthetic: laboratory bench readout. Near-black plane, hairline
      panels, amber phosphor for the live reading. Monospace for every
      measured value; humanist sans for prose. Nothing decorative that
@@ -937,11 +937,11 @@
   <body>
     <div class="wrap">
       <header class="mast">
-        <span class="mark"><span class="dot"></span>FINGERPRINT&nbsp;TOOL</span>
+        <span class="mark"><span class="dot"></span>FINGERPRINT</span>
         <span class="sub" id="clock">—</span>
         <a
           class="gh"
-          href="https://github.com/tcboni/fingerprint-tool"
+          href="https://github.com/tcboni/fingerprint"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="View source on GitHub"
@@ -1084,7 +1084,7 @@
     <script>
       "use strict";
       /* ══════════════════════════════════════════════════════════════
-   Fingerprint Tool engine
+   Fingerprint engine
    1. hashing (no crypto.subtle — must work on file://)
    2. per-signal collectors  → {rows, raw, bits, extra}
    3. render panels + meters + hero
@@ -1169,7 +1169,7 @@
    ---------------------------------------------------------------*/
       // meta is completed at boot with collection facts (url, timing,
       // which signals feed the hash, hash & entropy methodology)
-      const REPORT = { meta: { tool: "Fingerprint Tool" }, signals: {} };
+      const REPORT = { meta: { tool: "Fingerprint" }, signals: {} };
 
       async function collectNavigator() {
         const n = navigator,
@@ -3430,8 +3430,8 @@
 
           // Diff against the last test's baseline (before panels are built,
           // so makePanel can decorate changed rows)
-          const DIFF_KEY = "fpt:baseline";
-          const DIFF_ON_KEY = "fpt:diff-on";
+          const DIFF_KEY = "fingerprint:baseline";
+          const DIFF_ON_KEY = "fingerprint:diff";
           let baseline = null;
           try {
             baseline = JSON.parse(localStorage.getItem(DIFF_KEY));
